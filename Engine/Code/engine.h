@@ -36,6 +36,12 @@ struct Program
     u64                lastWriteTimestamp; // What is this for?
 };
 
+struct VertexV3V2
+{
+    glm::vec3 pos;
+    glm::vec2 uv;
+};
+
 enum Mode
 {
     Mode_TexturedQuad,
@@ -92,4 +98,3 @@ void Gui(App* app);
 void Update(App* app);
 
 void Render(App* app);
-
