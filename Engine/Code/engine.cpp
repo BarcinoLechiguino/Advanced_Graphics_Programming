@@ -236,10 +236,62 @@ void Init(App* app)
     app->mode = Mode_TexturedQuad;
 }
 
+void Update(App* app)
+{
+    // You can handle app->input keyboard/mouse here
+
+
+}
+
+void Render(App* app)
+{
+    switch (app->mode)
+    {
+    case Mode_TexturedQuad:
+    {
+        if (app->enableDebugGroups)
+        {
+            glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1, -1, "Shaded Model");
+        }
+
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+
+        Program& programTexturedGeometry = app->programs[app->texturedGeometryProgramIdx];
+        glUseProgram(programTexturedGeometry.handle);
+        glBindVertexArray(app->vao);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glUniform1i(app->programUniformTexture, 0);
+        glActiveTexture(GL_TEXTURE0);
+        GLuint textureHandle = app->textures[app->diceTexIdx].handle;
+        glBindTexture(GL_TEXTURE_2D, textureHandle);
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+
+        glBindVertexArray(0);
+        glUseProgram(0);
+
+        if (app->enableDebugGroups)
+        {
+            glPopDebugGroup();
+        }
+    }
+    break;
+
+    default: {};
+    }
+}
+
 void Gui(App* app)
 {
     ImGui::Begin("Info");
     ImGui::Text("FPS: %f", 1.0f/app->deltaTime);
+    ImGui::Checkbox("Enable debug groups", &app->enableDebugGroups);
     ImGui::End();
 
     ImGui::Begin("OpenGL Info");
@@ -258,43 +310,3 @@ void Gui(App* app)
     
     ImGui::End();
 }
-
-void Update(App* app)
-{
-    // You can handle app->input keyboard/mouse here
-}
-
-void Render(App* app)
-{
-    switch (app->mode)
-    {
-        case Mode_TexturedQuad:
-        {
-            glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-            glViewport(0, 0, app->displaySize.x, app->displaySize.y);
-
-            Program& programTexturedGeometry = app->programs[app->texturedGeometryProgramIdx];
-            glUseProgram(programTexturedGeometry.handle);
-            glBindVertexArray(app->vao);
-
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-            glUniform1i(app->programUniformTexture, 0);
-            glActiveTexture(GL_TEXTURE0);
-            GLuint textureHandle = app->textures[app->diceTexIdx].handle;
-            glBindTexture(GL_TEXTURE_2D, textureHandle);
-
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
-
-            glBindVertexArray(0);
-            glUseProgram(0);
-        }
-        break;
-
-        default: {};
-    }
-}
-

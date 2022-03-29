@@ -50,6 +50,9 @@ enum Mode
 
 struct App
 {
+    // Debug
+    bool enableDebugGroups;
+    
     // Loop
     f32  deltaTime;
     bool isRunning;
