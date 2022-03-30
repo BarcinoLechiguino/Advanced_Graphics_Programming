@@ -221,10 +221,47 @@ void Init(App* app)
     
     glBindVertexArray(0);
 
+    // BUFFER STRUCTS
+    VertexBufferLayout VBL = {};
+    VBL.attributes.push_back(VertexBufferAttribute{ 0, 3, 0 });                 // 3D Positions
+    VBL.attributes.push_back(VertexBufferAttribute{ 2, 2, 3 * sizeof(float) }); // Tex Coords
+    VBL.stride = 5 * sizeof(float);
+
+    // MODEL STRUCTS
+    /*Submesh submesh = {};
+    submesh.vertexBufferLayout = VBL;
+    submesh.vertices.swap(vertices);
+    submesh.indices.swap(indices);
+    myMesh->submeshes.push_back(submesh);*/
+
     // PROGRAM
-    app->texturedGeometryProgramIdx  = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
-    Program& texturedGeometryProgram = app->programs[app->texturedGeometryProgramIdx];
-    app->programUniformTexture = glGetUniformLocation(texturedGeometryProgram.handle, "uTexture");
+    app->texturedGeometryProgramIdx     = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
+    Program& texturedGeometryProgram    = app->programs[app->texturedGeometryProgramIdx];
+    /*texturedMeshProgram.vertexInputLayout.attributes.push_back({0, 3});   // Position
+    texturedMeshProgram.vertexInputLayout.attributes.push_back({ 2, 2 });   // Tex Coord*/
+    app->programUniformTexture          = glGetUniformLocation(texturedGeometryProgram.handle, "uTexture");
+
+    // SHADER
+    GLint   attributeCount      = 0;
+    char    attributeName[128];
+    GLsizei attributeNameLength = 0;
+    GLint   attributeSize       = 0;
+    GLenum  attributeType;
+    GLint   attributeLocation   = 0;
+
+    glGetProgramiv(texturedGeometryProgram.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
+    for (GLint i = 0; i < attributeCount; ++i)
+    {
+        glGetActiveAttrib(texturedGeometryProgram.handle, i,
+                            ARRAY_COUNT(attributeName),
+                            &attributeNameLength,
+                            &attributeSize,
+                            &attributeType,
+                            attributeName);
+
+        attributeLocation = glGetAttribLocation(texturedGeometryProgram.handle, attributeName);
+        glVertexAttribPointer(attributeLocation, attributeSize, attributeType, GL_FALSE, sizeof(float) * 5, (void*)0);
+    }
 
     // TEXTURE
     app->diceTexIdx     = LoadTexture2D(app, "dice.png");
@@ -239,7 +276,6 @@ void Init(App* app)
 void Update(App* app)
 {
     // You can handle app->input keyboard/mouse here
-
 
 }
 

@@ -14,6 +14,38 @@ typedef glm::ivec2 ivec2;
 typedef glm::ivec3 ivec3;
 typedef glm::ivec4 ivec4;
 
+// BUFFERS
+struct VAO
+{
+    GLuint ID;
+    GLuint programID;
+};
+
+struct VertexBufferAttribute
+{
+    u8 location;
+    u8 componentCount;
+    u8 offset;
+};
+
+struct VertexBufferLayout
+{
+    std::vector<VertexBufferAttribute>  attributes;
+    u8                                  stride;
+};
+
+struct VertexShaderAttribute
+{
+    u8 location;
+    u8 componentCount;
+};
+
+struct VertexShaderLayout
+{
+    std::vector<VertexShaderAttribute> attributes;
+};
+
+// VISUALS
 struct Image
 {
     void* pixels;
@@ -26,6 +58,26 @@ struct Texture
 {
     GLuint      handle;
     std::string filepath;
+};
+
+struct Material
+{
+
+};
+
+struct Submesh
+{
+
+};
+
+struct Mesh
+{
+
+};
+
+struct Model
+{
+
 };
 
 struct Program
