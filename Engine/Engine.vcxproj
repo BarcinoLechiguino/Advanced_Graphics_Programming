@@ -21,6 +21,9 @@
   <ItemGroup>
     <ClCompile Include="Code\assimp_model_loading.cpp" />
     <ClCompile Include="Code\engine.cpp" />
+    <ClCompile Include="Code\globals.cpp" />
+    <ClCompile Include="Code\input.cpp" />
+    <ClCompile Include="Code\main.cpp" />
     <ClCompile Include="Code\platform.cpp" />
     <ClCompile Include="ThirdParty\glad\include\glad\glad.c" />
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp" />
@@ -33,7 +36,11 @@
     <ClCompile Include="ThirdParty\stb\stb.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Code\base_types.h" />
     <ClInclude Include="Code\engine.h" />
+    <ClInclude Include="Code\globals.h" />
+    <ClInclude Include="Code\input.h" />
+    <ClInclude Include="Code\math_types.h" />
     <ClInclude Include="Code\platform.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\glad.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\khrplatform.h" />
@@ -146,7 +153,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)\ThirdParty\glfw\include;$(ProjectDir)\ThirdParty\glad\include;$(ProjectDir)\ThirdParty\glm\include;$(ProjectDir)\ThirdParty\imgui-docking;$(ProjectDir)\ThirdParty\stb;$(ProjectDir)\ThirdParty\Assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -163,7 +170,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)\ThirdParty\glfw\include;$(ProjectDir)\ThirdParty\glad\include;$(ProjectDir)\ThirdParty\glm\include;$(ProjectDir)\ThirdParty\imgui-docking;$(ProjectDir)\ThirdParty\stb;$(ProjectDir)\ThirdParty\Assimp\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>

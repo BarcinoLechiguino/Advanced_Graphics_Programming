@@ -6,6 +6,8 @@
 //
 
 #include "engine.h"
+#include "globals.h"
+
 #include <imgui.h>
 #include <stb_image.h>
 #include <stb_image_write.h>

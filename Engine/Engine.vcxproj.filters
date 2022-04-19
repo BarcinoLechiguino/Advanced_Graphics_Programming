@@ -16,6 +16,9 @@
     <Filter Include="Stb">
       <UniqueIdentifier>{0ac2ff0f-5f18-480a-8bd6-6aa7428166bb}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Helpers">
+      <UniqueIdentifier>{577d0e9a-f8ee-444d-9653-34940b946d0c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp">
@@ -42,17 +45,26 @@
     <ClCompile Include="ThirdParty\glad\include\glad\glad.c">
       <Filter>Glad</Filter>
     </ClCompile>
-    <ClCompile Include="Code\engine.cpp">
-      <Filter>Engine</Filter>
-    </ClCompile>
-    <ClCompile Include="Code\platform.cpp">
-      <Filter>Engine</Filter>
-    </ClCompile>
     <ClCompile Include="ThirdParty\stb\stb.cpp">
       <Filter>Stb</Filter>
     </ClCompile>
     <ClCompile Include="Code\assimp_model_loading.cpp">
       <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\engine.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\main.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\platform.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\globals.cpp">
+      <Filter>Engine\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\input.cpp">
+      <Filter>Engine\Helpers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -80,20 +92,32 @@
     <ClInclude Include="ThirdParty\imgui-docking\imstb_truetype.h">
       <Filter>ImGui</Filter>
     </ClInclude>
-    <ClInclude Include="Code\engine.h">
-      <Filter>Engine</Filter>
-    </ClInclude>
     <ClInclude Include="ThirdParty\glad\include\glad\glad.h">
       <Filter>Glad</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\glad\include\glad\khrplatform.h">
       <Filter>Glad</Filter>
     </ClInclude>
+    <ClInclude Include="ThirdParty\stb\stb_image.h">
+      <Filter>Stb</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\engine.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
     <ClInclude Include="Code\platform.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\stb\stb_image.h">
-      <Filter>Stb</Filter>
+    <ClInclude Include="Code\globals.h">
+      <Filter>Engine\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\base_types.h">
+      <Filter>Engine\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\input.h">
+      <Filter>Engine\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\math_types.h">
+      <Filter>Engine\Helpers</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

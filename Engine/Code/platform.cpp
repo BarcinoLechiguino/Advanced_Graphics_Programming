@@ -16,6 +16,7 @@
 #endif
 
 #include "engine.h"
+#include "globals.h"
 
 #include <GLFW/glfw3.h>
 #include <stdio.h>
@@ -72,11 +73,13 @@ void OnGlfwKeyboardEvent(GLFWwindow* window, int key, int scancode, int action, 
 {
     // Remap key to our enum values
     switch (key) {
-        case GLFW_KEY_SPACE:  key = K_SPACE; break;
+        case GLFW_KEY_SPACE: key = K_SPACE; break;
+
         case GLFW_KEY_0: key = K_0; break; case GLFW_KEY_1: key = K_1; break; case GLFW_KEY_2: key = K_2; break;
         case GLFW_KEY_3: key = K_3; break; case GLFW_KEY_4: key = K_4; break; case GLFW_KEY_5: key = K_5; break;
         case GLFW_KEY_6: key = K_6; break; case GLFW_KEY_7: key = K_7; break; case GLFW_KEY_8: key = K_8; break;
         case GLFW_KEY_9: key = K_9; break;
+
         case GLFW_KEY_A: key = K_A; break; case GLFW_KEY_B: key = K_B; break; case GLFW_KEY_C: key = K_C; break;
         case GLFW_KEY_D: key = K_D; break; case GLFW_KEY_E: key = K_E; break; case GLFW_KEY_F: key = K_F; break;
         case GLFW_KEY_G: key = K_G; break; case GLFW_KEY_H: key = K_H; break; case GLFW_KEY_I: key = K_I; break;
@@ -86,6 +89,7 @@ void OnGlfwKeyboardEvent(GLFWwindow* window, int key, int scancode, int action, 
         case GLFW_KEY_S: key = K_S; break; case GLFW_KEY_T: key = K_T; break; case GLFW_KEY_U: key = K_U; break;
         case GLFW_KEY_V: key = K_V; break; case GLFW_KEY_W: key = K_W; break; case GLFW_KEY_X: key = K_X; break;
         case GLFW_KEY_Y: key = K_Y; break; case GLFW_KEY_Z: key = K_Z; break;
+
         case GLFW_KEY_ESCAPE: key = K_ESCAPE; break;
         case GLFW_KEY_ENTER:  key = K_ENTER; break;
     }
@@ -114,14 +118,54 @@ void OnGlfwCloseWindow(GLFWwindow* window)
     app->isRunning = false;
 }
 
-int main()
+u32 Strlen(const char* string)
 {
-    App app         = {};
-    app.deltaTime   = 1.0f/60.0f;
-    app.displaySize = ivec2(WINDOW_WIDTH, WINDOW_HEIGHT);
-    app.isRunning   = true;
+    u32 len = 0;
+    while (*string++) len++;
+    return len;
+}
 
-	glfwSetErrorCallback(OnGlfwError);
+void* PushSize(u32 byteCount)
+{
+    ASSERT(GlobalFrameArenaHead + byteCount <= GLOBAL_FRAME_ARENA_SIZE,
+           "Trying to allocate more temp memory than available");
+
+    u8* curPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
+    GlobalFrameArenaHead += byteCount;
+    return curPtr;
+}
+
+void* PushBytes(const void* bytes, u32 byteCount)
+{
+    ASSERT(GlobalFrameArenaHead + byteCount <= GLOBAL_FRAME_ARENA_SIZE,
+            "Trying to allocate more temp memory than available");
+
+    u8* srcPtr = (u8*)bytes;
+    u8* curPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
+    u8* dstPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
+    GlobalFrameArenaHead += byteCount;
+    while (byteCount--) *dstPtr++ = *srcPtr++;
+    return curPtr;
+}
+
+u8* PushChar(u8 c)
+{
+    ASSERT(GlobalFrameArenaHead + 1 <= GLOBAL_FRAME_ARENA_SIZE,
+            "Trying to allocate more temp memory than available");
+    u8* ptr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
+    GlobalFrameArenaHead++;
+    *ptr = c;
+    return ptr;
+}
+
+int Init()
+{
+    App app = {};
+    app.deltaTime = 1.0f / 60.0f;
+    app.displaySize = ivec2(WINDOW_WIDTH, WINDOW_HEIGHT);
+    app.isRunning = true;
+
+    glfwSetErrorCallback(OnGlfwError);
 
     if (!glfwInit())
     {
@@ -154,7 +198,7 @@ int main()
     glfwMakeContextCurrent(window);
 
     // Load all OpenGL functions using the glfw loader function
-    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress))
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         ELOG("Failed to initialize OpenGL context\n");
         return -1;
@@ -228,12 +272,12 @@ int main()
         // Transition input key/button states
         if (!ImGui::GetIO().WantCaptureKeyboard)
             for (u32 i = 0; i < KEY_COUNT; ++i)
-                if      (app.input.keys[i] == BUTTON_PRESS)   app.input.keys[i] = BUTTON_PRESSED;
+                if (app.input.keys[i] == BUTTON_PRESS)   app.input.keys[i] = BUTTON_PRESSED;
                 else if (app.input.keys[i] == BUTTON_RELEASE) app.input.keys[i] = BUTTON_IDLE;
 
         if (!ImGui::GetIO().WantCaptureMouse)
             for (u32 i = 0; i < MOUSE_BUTTON_COUNT; ++i)
-                if      (app.input.mouseButtons[i] == BUTTON_PRESS)   app.input.mouseButtons[i] = BUTTON_PRESSED;
+                if (app.input.mouseButtons[i] == BUTTON_PRESS)   app.input.mouseButtons[i] = BUTTON_PRESSED;
                 else if (app.input.mouseButtons[i] == BUTTON_RELEASE) app.input.mouseButtons[i] = BUTTON_IDLE;
 
         app.input.mouseDelta = glm::vec2(0.0f, 0.0f);
@@ -272,46 +316,6 @@ int main()
     glfwTerminate();
 
     return 0;
-}
-
-u32 Strlen(const char* string)
-{
-    u32 len = 0;
-    while (*string++) len++;
-    return len;
-}
-
-void* PushSize(u32 byteCount)
-{
-    ASSERT(GlobalFrameArenaHead + byteCount <= GLOBAL_FRAME_ARENA_SIZE,
-           "Trying to allocate more temp memory than available");
-
-    u8* curPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
-    GlobalFrameArenaHead += byteCount;
-    return curPtr;
-}
-
-void* PushBytes(const void* bytes, u32 byteCount)
-{
-    ASSERT(GlobalFrameArenaHead + byteCount <= GLOBAL_FRAME_ARENA_SIZE,
-            "Trying to allocate more temp memory than available");
-
-    u8* srcPtr = (u8*)bytes;
-    u8* curPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
-    u8* dstPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
-    GlobalFrameArenaHead += byteCount;
-    while (byteCount--) *dstPtr++ = *srcPtr++;
-    return curPtr;
-}
-
-u8* PushChar(u8 c)
-{
-    ASSERT(GlobalFrameArenaHead + 1 <= GLOBAL_FRAME_ARENA_SIZE,
-            "Trying to allocate more temp memory than available");
-    u8* ptr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
-    GlobalFrameArenaHead++;
-    *ptr = c;
-    return ptr;
 }
 
 String MakeString(const char *cstr)
@@ -397,14 +401,4 @@ u64 GetFileLastWriteTimestamp(const char* filepath)
 #endif
 
     return 0;
-}
-
-void LogString(const char* str)
-{
-#ifdef _WIN32
-    OutputDebugStringA(str);
-    OutputDebugStringA("\n");
-#else
-    fprintf(stderr, "%s\n", str);
-#endif
 }
