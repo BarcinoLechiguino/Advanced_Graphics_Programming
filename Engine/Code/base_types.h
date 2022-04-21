@@ -12,4 +12,10 @@ typedef unsigned long long int	u64;
 typedef float					f32;
 typedef double					f64;
 
+struct String
+{
+    char* str;
+    u32   len;
+};
+
 #endif // !__BASE_TYPES_H__

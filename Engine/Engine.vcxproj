@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="Code\assimp_model_loading.cpp" />
     <ClCompile Include="Code\engine.cpp" />
+    <ClCompile Include="Code\file_manager.cpp" />
     <ClCompile Include="Code\globals.cpp" />
     <ClCompile Include="Code\input.cpp" />
     <ClCompile Include="Code\main.cpp" />
@@ -38,10 +39,13 @@
   <ItemGroup>
     <ClInclude Include="Code\base_types.h" />
     <ClInclude Include="Code\engine.h" />
+    <ClInclude Include="Code\file_manager.h" />
     <ClInclude Include="Code\globals.h" />
+    <ClInclude Include="Code\imgui_includes.h" />
     <ClInclude Include="Code\input.h" />
     <ClInclude Include="Code\math_types.h" />
     <ClInclude Include="Code\platform.h" />
+    <ClInclude Include="Code\windows_includes.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\glad.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\khrplatform.h" />
     <ClInclude Include="ThirdParty\imgui-docking\imconfig.h" />

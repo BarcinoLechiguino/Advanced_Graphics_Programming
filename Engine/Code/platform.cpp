@@ -4,22 +4,12 @@
 // it needs in order to create the application (e.g. window, graphics context, I/O, allocators, etc).
 //
 
-#ifdef _WIN32
-#define VC_EXTRALEAN
-#define WIN32_LEAN_AND_MEAN
-#define _CRT_SECURE_NO_WARNINGS
-#include <Windows.h>
-#else
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#endif
-
 #include "engine.h"
 #include "globals.h"
+#include "input.h"
+#include "file_manager.h"
 
 #include <GLFW/glfw3.h>
-#include <stdio.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -27,10 +17,6 @@
 #define WINDOW_TITLE  "Advanced Graphics Programming"
 #define WINDOW_WIDTH  800
 #define WINDOW_HEIGHT 600
-
-#define GLOBAL_FRAME_ARENA_SIZE MB(16)
-u8* GlobalFrameArenaMemory = NULL;
-u32 GlobalFrameArenaHead = 0;
 
 void OnGlfwError(int errorCode, const char *errorMessage)
 {
@@ -118,47 +104,7 @@ void OnGlfwCloseWindow(GLFWwindow* window)
     app->isRunning = false;
 }
 
-u32 Strlen(const char* string)
-{
-    u32 len = 0;
-    while (*string++) len++;
-    return len;
-}
-
-void* PushSize(u32 byteCount)
-{
-    ASSERT(GlobalFrameArenaHead + byteCount <= GLOBAL_FRAME_ARENA_SIZE,
-           "Trying to allocate more temp memory than available");
-
-    u8* curPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
-    GlobalFrameArenaHead += byteCount;
-    return curPtr;
-}
-
-void* PushBytes(const void* bytes, u32 byteCount)
-{
-    ASSERT(GlobalFrameArenaHead + byteCount <= GLOBAL_FRAME_ARENA_SIZE,
-            "Trying to allocate more temp memory than available");
-
-    u8* srcPtr = (u8*)bytes;
-    u8* curPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
-    u8* dstPtr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
-    GlobalFrameArenaHead += byteCount;
-    while (byteCount--) *dstPtr++ = *srcPtr++;
-    return curPtr;
-}
-
-u8* PushChar(u8 c)
-{
-    ASSERT(GlobalFrameArenaHead + 1 <= GLOBAL_FRAME_ARENA_SIZE,
-            "Trying to allocate more temp memory than available");
-    u8* ptr = GlobalFrameArenaMemory + GlobalFrameArenaHead;
-    GlobalFrameArenaHead++;
-    *ptr = c;
-    return ptr;
-}
-
-int Init()
+int Platform::InitPlat()
 {
     App app = {};
     app.deltaTime = 1.0f / 60.0f;
@@ -241,7 +187,7 @@ int Init()
 
     f64 lastFrameTime = glfwGetTime();
 
-    GlobalFrameArenaMemory = (u8*)malloc(GLOBAL_FRAME_ARENA_SIZE);
+    FileManager::Init();
 
     Init(&app);
 
@@ -303,10 +249,10 @@ int Init()
         lastFrameTime = currentFrameTime;
 
         // Reset frame allocator
-        GlobalFrameArenaHead = 0;
+        FileManager::ResetFrameAllocator();
     }
 
-    free(GlobalFrameArenaMemory);
+    FileManager::CleanUp();
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -314,91 +260,6 @@ int Init()
     glfwDestroyWindow(window);
 
     glfwTerminate();
-
-    return 0;
-}
-
-String MakeString(const char *cstr)
-{
-    String str = {};
-    str.len = Strlen(cstr);
-    str.str = (char*)PushBytes(cstr, str.len);
-              PushChar(0);
-    return str;
-}
-
-String MakePath(String dir, String filename)
-{
-    String str = {};
-    str.len = dir.len + filename.len + 1;
-    str.str = (char*)PushBytes(dir.str, dir.len);
-              PushChar('/');
-              PushBytes(filename.str, filename.len);
-              PushChar(0);
-    return str;
-}
-
-String GetDirectoryPart(String path)
-{
-    String str = {};
-    i32 len = (i32)path.len;
-    while (len >= 0) {
-        len--;
-        if (path.str[len] == '/' || path.str[len] == '\\')
-            break;
-    }
-    str.len = (u32)len;
-    str.str = (char*)PushBytes(path.str, str.len);
-              PushChar(0);
-    return str;
-}
-
-String ReadTextFile(const char* filepath)
-{
-    String fileText = {};
-
-    FILE* file = fopen(filepath, "rb");
-
-    if (file)
-    {
-        fseek(file, 0, SEEK_END);
-        fileText.len = ftell(file);
-        fseek(file, 0, SEEK_SET);
-
-        fileText.str = (char*)PushSize(fileText.len + 1);
-        fread(fileText.str, sizeof(char), fileText.len, file);
-        fileText.str[fileText.len] = '\0';
-
-        fclose(file);
-    }
-    else
-    {
-        ELOG("fopen() failed reading file %s", filepath);
-    }
-
-    return fileText;
-}
-
-u64 GetFileLastWriteTimestamp(const char* filepath)
-{
-#ifdef _WIN32
-    union Filetime2u64 {
-        FILETIME filetime;
-        u64      u64time;
-    } conversor;
-
-    WIN32_FILE_ATTRIBUTE_DATA Data;
-    if(GetFileAttributesExA(filepath, GetFileExInfoStandard, &Data)) {
-        conversor.filetime = Data.ftLastWriteTime;
-        return(conversor.u64time);
-    }
-#else
-    // NOTE: This has not been tested in unix-like systems
-    struct stat attrib;
-    if (stat(filepath, &attrib) == 0) {
-        return attrib.st_mtime;
-    }
-#endif
 
     return 0;
 }

@@ -19,6 +19,15 @@
     <Filter Include="Engine\Helpers">
       <UniqueIdentifier>{577d0e9a-f8ee-444d-9653-34940b946d0c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Helpers\Types">
+      <UniqueIdentifier>{8d76ab2d-b06f-4748-9f21-f858ad230e74}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Helpers\Globals">
+      <UniqueIdentifier>{94f99b35-cf62-49c3-b3f7-ee5b762a9585}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Helpers\Includes">
+      <UniqueIdentifier>{ca7e7c43-15ee-404a-8c07-bdf8b242c79f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp">
@@ -60,11 +69,14 @@
     <ClCompile Include="Code\platform.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="Code\globals.cpp">
-      <Filter>Engine\Helpers</Filter>
-    </ClCompile>
     <ClCompile Include="Code\input.cpp">
       <Filter>Engine\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\file_manager.cpp">
+      <Filter>Engine\Helpers</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\globals.cpp">
+      <Filter>Engine\Helpers\Globals</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -107,17 +119,26 @@
     <ClInclude Include="Code\platform.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="Code\globals.h">
-      <Filter>Engine\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="Code\base_types.h">
-      <Filter>Engine\Helpers</Filter>
-    </ClInclude>
     <ClInclude Include="Code\input.h">
       <Filter>Engine\Helpers</Filter>
     </ClInclude>
-    <ClInclude Include="Code\math_types.h">
+    <ClInclude Include="Code\file_manager.h">
       <Filter>Engine\Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\base_types.h">
+      <Filter>Engine\Helpers\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\math_types.h">
+      <Filter>Engine\Helpers\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\globals.h">
+      <Filter>Engine\Helpers\Globals</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\windows_includes.h">
+      <Filter>Engine\Helpers\Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\imgui_includes.h">
+      <Filter>Engine\Helpers\Includes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

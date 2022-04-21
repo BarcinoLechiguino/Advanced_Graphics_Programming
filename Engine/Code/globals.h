@@ -1,6 +1,8 @@
 #ifndef __GLOBALS_H__
 #define __GLOBALS_H__
 
+#include <assert.h>
+
 void LogString(const char* str);
 
 #define ILOG(...)                     \

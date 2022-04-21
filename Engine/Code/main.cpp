@@ -1,6 +1,12 @@
-#include "platform.h"
+#include "engine.h"
 
 int main()
 {
-    return Init();
+    App* app = new App();
+    
+    int val = app->platform.InitPlat();
+
+    delete app;
+
+    return val;
 }

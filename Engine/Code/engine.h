@@ -5,6 +5,7 @@
 #pragma once
 
 #include "platform.h"
+#include "input.h"
 #include <glad/glad.h>
 
 // BUFFERS
@@ -95,6 +96,9 @@ enum Mode
 
 struct App
 {
+    // Platform
+    Platform platform;
+    
     // Debug
     bool enableDebugGroups;
     

@@ -7,6 +7,7 @@
 
 #include "engine.h"
 #include "globals.h"
+#include "file_manager.h"
 
 #include <imgui.h>
 #include <stb_image.h>
@@ -105,13 +106,13 @@ GLuint CreateProgramFromSource(String programSource, const char* shaderName)
 
 u32 LoadProgram(App* app, const char* filepath, const char* programName)
 {
-    String programSource = ReadTextFile(filepath);
+    String programSource = FileManager::ReadTextFile(filepath);
 
     Program program = {};
     program.handle = CreateProgramFromSource(programSource, programName);
     program.filepath = filepath;
     program.programName = programName;
-    program.lastWriteTimestamp = GetFileLastWriteTimestamp(filepath);
+    program.lastWriteTimestamp =  FileManager::GetFileLastWriteTimestamp(filepath);
     app->programs.push_back(program);
 
     return app->programs.size() - 1;
