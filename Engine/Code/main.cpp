@@ -1,12 +1,11 @@
-#include "engine.h"
+//#include "engine.h"
+#include "platform.h"
 
 int main()
 {
-    App* app = new App();
-    
+    /*App* app = new App();
     int val = app->platform.InitPlat();
+    delete app;*/
 
-    delete app;
-
-    return val;
+    return Platform::Init();
 }

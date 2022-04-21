@@ -1,12 +1,16 @@
+
+
 //
 // engine.h: This file contains the types and functions relative to the engine.
 //
 
-#pragma once
+#include <vector>
+#include <string>
+#include <math.h>
+#include <glad/glad.h>
 
 #include "platform.h"
 #include "input.h"
-#include <glad/glad.h>
 
 // BUFFERS
 struct VAO
@@ -95,10 +99,7 @@ enum Mode
 };
 
 struct App
-{
-    // Platform
-    Platform platform;
-    
+{   
     // Debug
     bool enableDebugGroups;
     
