@@ -28,6 +28,12 @@
     <Filter Include="Engine\Helpers\Includes">
       <UniqueIdentifier>{ca7e7c43-15ee-404a-8c07-bdf8b242c79f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Helpers\Input">
+      <UniqueIdentifier>{aa613b35-b81f-4add-9438-ace07145fa13}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Helpers\FileManager">
+      <UniqueIdentifier>{ecdfc4f9-afe0-4855-8606-fbb641120ae9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp">
@@ -69,14 +75,14 @@
     <ClCompile Include="Code\platform.cpp">
       <Filter>Engine</Filter>
     </ClCompile>
-    <ClCompile Include="Code\input.cpp">
-      <Filter>Engine\Helpers</Filter>
-    </ClCompile>
-    <ClCompile Include="Code\file_manager.cpp">
-      <Filter>Engine\Helpers</Filter>
-    </ClCompile>
     <ClCompile Include="Code\globals.cpp">
       <Filter>Engine\Helpers\Globals</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\file_manager.cpp">
+      <Filter>Engine\Helpers\FileManager</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\input.cpp">
+      <Filter>Engine\Helpers\Input</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -119,12 +125,6 @@
     <ClInclude Include="Code\platform.h">
       <Filter>Engine</Filter>
     </ClInclude>
-    <ClInclude Include="Code\input.h">
-      <Filter>Engine\Helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="Code\file_manager.h">
-      <Filter>Engine\Helpers</Filter>
-    </ClInclude>
     <ClInclude Include="Code\base_types.h">
       <Filter>Engine\Helpers\Types</Filter>
     </ClInclude>
@@ -139,6 +139,18 @@
     </ClInclude>
     <ClInclude Include="Code\imgui_includes.h">
       <Filter>Engine\Helpers\Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\shader_types.h">
+      <Filter>Engine\Helpers\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\file_manager.h">
+      <Filter>Engine\Helpers\FileManager</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\input.h">
+      <Filter>Engine\Helpers\Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\app.h">
+      <Filter>Engine\Helpers\Types</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

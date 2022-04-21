@@ -37,6 +37,7 @@
     <ClCompile Include="ThirdParty\stb\stb.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Code\app.h" />
     <ClInclude Include="Code\base_types.h" />
     <ClInclude Include="Code\engine.h" />
     <ClInclude Include="Code\file_manager.h" />
@@ -45,6 +46,7 @@
     <ClInclude Include="Code\input.h" />
     <ClInclude Include="Code\math_types.h" />
     <ClInclude Include="Code\platform.h" />
+    <ClInclude Include="Code\shader_types.h" />
     <ClInclude Include="Code\windows_includes.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\glad.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\khrplatform.h" />

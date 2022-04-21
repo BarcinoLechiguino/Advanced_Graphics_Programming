@@ -4,10 +4,13 @@
 // it needs in order to create the application (e.g. window, graphics context, I/O, allocators, etc).
 //
 
-#include "engine.h"
 #include "globals.h"
-#include "input.h"
 #include "file_manager.h"
+#include "input.h"
+#include "engine.h"
+#include "app.h"
+
+#include "platform.h"
 
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -103,7 +106,7 @@ int Platform::Init()
 
     FileManager::Init();
 
-    Init(&app);
+    Engine::Init(&app);
 
     while (app.isRunning)
     {
@@ -114,7 +117,7 @@ int Platform::Init()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        Gui(&app);
+        Engine::Gui(&app);
         ImGui::Render();
 
         // Clear input state if required by ImGui
@@ -143,7 +146,7 @@ int Platform::Init()
         app.input.mouseDelta = glm::vec2(0.0f, 0.0f);
 
         // Render
-        Render(&app);
+        Engine::Render(&app);
 
         // ImGui Render
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -176,6 +179,11 @@ int Platform::Init()
     glfwTerminate();
 
     return 0;
+}
+
+void Platform::Update(App* app)
+{
+
 }
 
 void Platform::OnGlfwError(int errorCode, const char *errorMessage)

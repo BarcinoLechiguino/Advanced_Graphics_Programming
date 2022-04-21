@@ -8,10 +8,12 @@
 #include "math_types.h"
 
 struct GLFWwindow;
+struct App;
 
 namespace Platform
 {
-    int Init();
+    int  Init();
+    void Update(App* app);
     
     void OnGlfwError                (int errorCode, const char* errorMessage);
     
