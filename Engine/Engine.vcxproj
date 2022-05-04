@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Code\assimp_model_loading.cpp" />
+    <ClCompile Include="Code\importer.cpp" />
     <ClCompile Include="Code\engine.cpp" />
     <ClCompile Include="Code\file_manager.cpp" />
     <ClCompile Include="Code\globals.cpp" />

@@ -37,7 +37,7 @@ void main()
 
 #ifdef TEXTURED_PATRICK
 
-#if defined(VERTEX) ///////////////////////////////////////////////////
+#if defined(VERTEX)	///////////////////////////////////////////////////
 
 layout(location = 0) in vec3 aPosition;
 //layout(location = 1) in vec3 aNormal;
@@ -55,7 +55,7 @@ void main()
 	gl_Position.z		= -gl_Position.z;
 }
 
-#elif defined(FRAGMENT) ///////////////////////////////////////////////
+#elif defined(FRAGMENT)	///////////////////////////////////////////////
 
 in vec2 vTexCoord;
 uniform sampler2D uTexture;
@@ -67,7 +67,7 @@ void main()
 	oColor = texture(uTexture, vTexCoord);
 }
 
-#endif
+#endif	///////////////////////////////////////////////////////////////
 
 #endif
 

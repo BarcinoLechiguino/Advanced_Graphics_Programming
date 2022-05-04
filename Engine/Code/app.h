@@ -29,6 +29,16 @@ public:                                                                 // OpenG
     GLuint embeddedElements;                                            // as a screen filling quad, a cube, a sphere...).
 
     GLuint programUniformTexture;                                       // Location of the texture uniform in the textured quad shader
+    
+    std::vector<Texture>    textures;
+    std::vector<Material>   materials;
+    std::vector<Mesh>       meshes;
+    std::vector<Model>      models;
+    std::vector<Program>    programs;
+
+    // program indices
+    u32 texturedGeometryProgramIdx;
+    u32 texturedMeshProgramIdx;
 
     GLuint vao;                                                         // VAO object to link our screen filling quad with our textured quad shader
 
