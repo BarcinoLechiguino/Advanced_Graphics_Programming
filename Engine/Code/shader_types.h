@@ -57,22 +57,38 @@ struct Texture
 
 struct Material
 {
-
+    std::string name;
+    vec3        albedo;
+    vec3        emissive;
+    f32         smoothness;
+    u32         albedoTexID;
+    u32         emissiveTexID;
+    u32         normalTexID;
+    u32         bumpTexID;
 };
 
 struct Submesh
 {
+    VertexBufferLayout  VBL;
+    std::vector<float>  vertices;            // Create Vertex struct?
+    std::vector<u32>    indices;
+    u32                 vertexOffset;
+    u32                 indexOffset;
 
+    std::vector<VAO>    vaos;
 };
 
 struct Mesh
 {
-
+    std::vector<Submesh> submeshes;
+    GLuint               vertexBufferHandle;
+    GLuint               indexBufferHandle;
 };
 
 struct Model
 {
-
+    u32              meshID;
+    std::vector<u32> materialIDs;
 };
 
 struct Program

@@ -62,13 +62,14 @@ void Engine::Init(App* app)
 
     // MODEL STRUCTS
     /*Submesh submesh = {};
-    submesh.vertexBufferLayout = VBL;
+    submesh.VBL = VBL;
     submesh.vertices.swap(vertices);
     submesh.indices.swap(indices);
     myMesh->submeshes.push_back(submesh);*/
 
     // PROGRAM
     app->texturedGeometryProgramIdx     = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
+    //app->texturedMeshProgramIdx = ;
     Program& texturedGeometryProgram    = app->programs[app->texturedGeometryProgramIdx];
     /*texturedMeshProgram.vertexInputLayout.attributes.push_back({0, 3});   // Position
     texturedMeshProgram.vertexInputLayout.attributes.push_back({ 2, 2 });   // Tex Coord*/
@@ -86,11 +87,11 @@ void Engine::Init(App* app)
     for (GLint i = 0; i < attributeCount; ++i)
     {
         glGetActiveAttrib(texturedGeometryProgram.handle, i,
-                            ARRAY_COUNT(attributeName),
-                            &attributeNameLength,
-                            &attributeSize,
-                            &attributeType,
-                            attributeName);
+                          ARRAY_COUNT(attributeName),
+                          &attributeNameLength,
+                          &attributeSize,
+                          &attributeType,
+                          attributeName);
 
         attributeLocation = glGetAttribLocation(texturedGeometryProgram.handle, attributeName);
         glVertexAttribPointer(attributeLocation, attributeSize, attributeType, GL_FALSE, sizeof(float) * 5, (void*)0);
@@ -128,7 +129,10 @@ void Engine::Render(App* app)
 
         glViewport(0, 0, app->displaySize.x, app->displaySize.y);
 
-        Program& programTexturedGeometry = app->programs[app->texturedGeometryProgramIdx];
+        Program& texturedMeshProgram = app->programs[app->textureMeshProgramIdx];
+
+        
+        /*Program& programTexturedGeometry = app->programs[app->texturedGeometryProgramIdx];
         glUseProgram(programTexturedGeometry.handle);
         glBindVertexArray(app->vao);
 
@@ -140,7 +144,7 @@ void Engine::Render(App* app)
         GLuint textureHandle = app->textures[app->diceTexIdx].handle;
         glBindTexture(GL_TEXTURE_2D, textureHandle);
 
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);*/
 
         glBindVertexArray(0);
         glUseProgram(0);
@@ -165,16 +169,21 @@ void Engine::Gui(App* app)
 
     ImGui::Begin("OpenGL Info");
     
-    ImGui::Text("Version: %s", glGetString(GL_VERSION));
-    ImGui::Text("Renderer: %s", glGetString(GL_RENDERER));
-    ImGui::Text("Vendor: %s", glGetString(GL_VENDOR));
-    ImGui::Text("GLSL Version: %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+    ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "Version:");     ImGui::SameLine(); ImGui::Text("  %s", glGetString(GL_VERSION));
+    ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "Renderer:");    ImGui::SameLine(); ImGui::Text(" %s", glGetString(GL_RENDERER));
+    ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "Vendor:");      ImGui::SameLine(); ImGui::Text("   %s", glGetString(GL_VENDOR));
+    ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "GLSL Ver:");    ImGui::SameLine(); ImGui::Text(" %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
     
-    GLint num_extensions;
-    glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
-    for (GLint i = 0; i < num_extensions; ++i)
+    if (ImGui::TreeNodeEx("Extensions", ImGuiTreeNodeFlags_None))
     {
-        ImGui::Text("Extension %i: %s", i, glGetStringi(GL_EXTENSIONS, GLuint(i)));
+        GLint num_extensions;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
+        for (GLint i = 0; i < num_extensions; ++i)
+        {
+            ImGui::Text("Extension %i: %s", i, glGetStringi(GL_EXTENSIONS, GLuint(i)));
+        }
+
+        ImGui::TreePop();
     }
     
     ImGui::End();
