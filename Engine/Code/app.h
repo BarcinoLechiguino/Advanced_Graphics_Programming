@@ -7,48 +7,39 @@
 
 struct App
 {
-    // Debug
-    bool enableDebugGroups;
+public:
+    f32  deltaTime;                                                     // Loop
+    bool isRunning;                                                     // ----
 
-    // Loop
-    f32  deltaTime;
-    bool isRunning;
+    Input input;                                                        // Input
 
-    // Input
-    Input input;
+    ivec2 displaySize;                                                  // Window (?)
 
-    // Graphics
-    char gpuName[64];
-    char openGlVersion[64];
+public:                                                                 // OpenGL Vars -----------------------------
+    Mode mode;                                                          // Rendering mode.
 
-    ivec2 displaySize;
+    u32 texturedGeometryProgramIdx;                                     // Index of a given program.
+    u32 diceTexIdx;                                                     // Buffer index of the dice texture.
+    u32 whiteTexIdx;                                                    // Buffer index of the white texture.
+    u32 blackTexIdx;                                                    // Buffer index of the black texture.
+    u32 normalTexIdx;                                                   // Buffer index of the normal texture.
+    u32 magentaTexIdx;                                                  // Buffer index of the magenta texture.
 
-    std::vector<Texture>  textures;
-    std::vector<Program>  programs;
+    GLuint embeddedVertices;                                            // Embedded geometry (in-editor simple meshes such 
+    GLuint embeddedElements;                                            // as a screen filling quad, a cube, a sphere...).
 
-    // program indices
-    u32 texturedGeometryProgramIdx;
+    GLuint programUniformTexture;                                       // Location of the texture uniform in the textured quad shader
 
-    // texture indices
-    u32 diceTexIdx;
-    u32 whiteTexIdx;
-    u32 blackTexIdx;
-    u32 normalTexIdx;
-    u32 magentaTexIdx;
+    GLuint vao;                                                         // VAO object to link our screen filling quad with our textured quad shader
 
-    // Mode
-    Mode mode;
+public:                                                                 // Containers ------------------------------
+    std::vector<Texture>  textures;                                     // Will store all active textures.
+    std::vector<Program>  programs;                                     // Will store all active programs.
 
-    // Embedded geometry (in-editor simple meshes such as
-    // a screen filling quad, a cube, a sphere...)
-    GLuint embeddedVertices;
-    GLuint embeddedElements;
-
-    // Location of the texture uniform in the textured quad shader
-    GLuint programUniformTexture;
-
-    // VAO object to link our screen filling quad with our textured quad shader
-    GLuint vao;
+public:                                                                 // Debug -----------------------------------
+    bool enableDebugGroups;                                             // Enable/Disable debugging with an external tool.
+    char gpuName[64];                                                   // GPU name string.
+    char openGlVersion[64];                                             // OpenGL version string.
 };
 
 #endif // !__APP_H__
