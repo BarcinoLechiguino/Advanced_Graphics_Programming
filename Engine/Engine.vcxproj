@@ -26,6 +26,7 @@
     <ClCompile Include="Code\input.cpp" />
     <ClCompile Include="Code\main.cpp" />
     <ClCompile Include="Code\platform.cpp" />
+    <ClCompile Include="Code\primitives.cpp" />
     <ClCompile Include="ThirdParty\glad\include\glad\glad.c" />
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp" />
     <ClCompile Include="ThirdParty\imgui-docking\imgui_demo.cpp" />
@@ -46,6 +47,7 @@
     <ClInclude Include="Code\input.h" />
     <ClInclude Include="Code\math_types.h" />
     <ClInclude Include="Code\platform.h" />
+    <ClInclude Include="Code\primitives.h" />
     <ClInclude Include="Code\shader_types.h" />
     <ClInclude Include="Code\windows_includes.h" />
     <ClInclude Include="ThirdParty\glad\include\glad\glad.h" />

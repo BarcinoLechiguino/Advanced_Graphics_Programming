@@ -34,6 +34,9 @@
     <Filter Include="Engine\Helpers\FileManager">
       <UniqueIdentifier>{ecdfc4f9-afe0-4855-8606-fbb641120ae9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Helpers\Primitives">
+      <UniqueIdentifier>{55b22482-621e-4337-bc2b-397e68234664}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp">
@@ -83,6 +86,9 @@
     </ClCompile>
     <ClCompile Include="Code\input.cpp">
       <Filter>Engine\Helpers\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\primitives.cpp">
+      <Filter>Engine\Helpers\Primitives</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -151,6 +157,9 @@
     </ClInclude>
     <ClInclude Include="Code\app.h">
       <Filter>Engine\Helpers\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\primitives.h">
+      <Filter>Engine\Helpers\Primitives</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -22,6 +22,11 @@ namespace Engine
 	void	FreeImage					(Image image);
 	GLuint	CreateTexture2DFromImage	(Image image);
 	u32		LoadTexture2D				(App* app, const char* filepath);
+	GLuint	FindVAO						(Mesh& mesh, u32 submeshIndex, const Program& program);
+	GLuint	CreateVAO					(Mesh& mesh, Submesh& submesh, const Program& program);
+
+	void	DrawTexturedQuad			(App* app);
+	void	DrawMeshes					(App* app);
 }
 
 #endif // !__ENGINE_H__

@@ -12,8 +12,8 @@
 // BUFFERS
 struct VAO
 {
-    GLuint ID;
-    GLuint programID;
+    GLuint handle;
+    GLuint programHandle;
 };
 
 struct VertexBufferAttribute
@@ -61,16 +61,16 @@ struct Material
     vec3        albedo;
     vec3        emissive;
     f32         smoothness;
-    u32         albedoTexID;
-    u32         emissiveTexID;
-    u32         normalTexID;
-    u32         bumpTexID;
+    u32         albedoTexIdx;
+    u32         emissiveTexIdx;
+    u32         normalTexIdx;
+    u32         bumpTexIdx;
 };
 
 struct Submesh
 {
-    VertexBufferLayout  VBL;
-    std::vector<float>  vertices;            // Create Vertex struct?
+    VertexBufferLayout  VBL;                    // Vertex Buffer Layout
+    std::vector<float>  vertices;               // Create Vertex struct?
     std::vector<u32>    indices;
     u32                 vertexOffset;
     u32                 indexOffset;
@@ -87,8 +87,8 @@ struct Mesh
 
 struct Model
 {
-    u32              meshID;
-    std::vector<u32> materialIDs;
+    u32              meshIdx;
+    std::vector<u32> materialIndices;
 };
 
 struct Program
@@ -96,7 +96,9 @@ struct Program
     GLuint             handle;
     std::string        filepath;
     std::string        programName;
-    u64                lastWriteTimestamp; // What is this for?
+    u64                lastWriteTimestamp;  // Hot-reloading check.
+
+    VertexBufferLayout VIL;                 // Vertex Input Layout.
 };
 
 struct VertexV3V2
