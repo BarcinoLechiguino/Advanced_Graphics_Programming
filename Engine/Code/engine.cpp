@@ -16,6 +16,8 @@
 
 void Engine::Init(App* app)
 {
+    app->enableDebugGroups = false;
+    
     app->mode = MODE::QUAD;
     
     switch (app->mode)
@@ -246,13 +248,13 @@ GLuint Engine::FindVAO(Mesh& mesh, u32 submeshIndex, const Program& program)
 void Engine::Renderer::InitQuad(App* app)
 {
     const VertexV3V2 vertices[] = {
-        { vec3(-0.5, -0.5, 0.0), vec2(0.0, 0.0) },
-        { vec3( 0.5, -0.5, 0.0), vec2(1.0, 0.0) },
-        { vec3( 0.5,  0.5, 0.0), vec2(1.0, 1.0) },
-        { vec3(-0.5,  0.5, 0.0), vec2(0.0, 1.0) }
+        { vec3(-0.5, -0.5, 0.0), vec2(0.0, 0.0) },          // 0
+        { vec3( 0.5, -0.5, 0.0), vec2(1.0, 0.0) },          // 1
+        { vec3( 0.5,  0.5, 0.0), vec2(1.0, 1.0) },          // 2
+        { vec3(-0.5,  0.5, 0.0), vec2(0.0, 1.0) }           // 3
     };
 
-    const u32 indices[] = {
+    const u16 indices[] = {
         0, 1, 2,
         0, 2, 3
     };
