@@ -44,6 +44,7 @@
     <ClInclude Include="Code\file_manager.h" />
     <ClInclude Include="Code\globals.h" />
     <ClInclude Include="Code\imgui_includes.h" />
+    <ClInclude Include="Code\importer.h" />
     <ClInclude Include="Code\input.h" />
     <ClInclude Include="Code\math_types.h" />
     <ClInclude Include="Code\platform.h" />

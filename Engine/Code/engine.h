@@ -11,22 +11,38 @@ struct App;
 
 namespace Engine
 {
-	void Init	(App* app);
-	void Update	(App* app);
-	void Render	(App* app);
-	void Gui	(App* app);
+	void Init		(App* app);
+	void Update		(App* app);
+	void Render		(App* app);
+	void DrawGui	(App* app);
 
 	GLuint	CreateProgramFromSource		(String programSource, const char* shaderName);
 	u32		LoadProgram					(App* app, const char* filepath, const char* programName);
-	Image	LoadImage					(const char* filename);
-	void	FreeImage					(Image image);
-	GLuint	CreateTexture2DFromImage	(Image image);
-	u32		LoadTexture2D				(App* app, const char* filepath);
-	GLuint	FindVAO						(Mesh& mesh, u32 submeshIndex, const Program& program);
-	GLuint	CreateVAO					(Mesh& mesh, Submesh& submesh, const Program& program);
+	
+	bool	UniformIsInvalid			(GLuint uniformHandle);
 
-	void	DrawTexturedQuad			(App* app);
-	void	DrawMeshes					(App* app);
+	GLuint	CreateVAO					(Mesh& mesh, Submesh& submesh, const Program& program);
+	GLuint	FindVAO						(Mesh& mesh, u32 submeshIndex, const Program& program);
+
+	namespace Input
+	{
+		void GetInput(App* app);
+	}
+
+	namespace Renderer
+	{
+		void InitQuad	(App* app);
+		void InitMesh	(App* app);
+
+		void RenderQuad	(App* app);
+		void RenderMesh	(App* app);
+	}
+
+	namespace Gui
+	{
+		void InfoTab					(App* app);
+		void ExtensionsTab				(App* app);
+	}
 }
 
 #endif // !__ENGINE_H__

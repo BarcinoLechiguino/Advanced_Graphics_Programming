@@ -1,8 +1,191 @@
-#include <assimp/cimport.h>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
+#include "globals.h"
+#include "file_manager.h"
 
-/*void ProcessAssimpMesh(const aiScene* scene, aiMesh* mesh, Mesh* myMesh, u32 baseMeshMaterialIndex, std::vector<u32>& submeshMaterialIndices)
+#include "importer.h"
+
+u32 Importer::LoadTexture2D(App* app, const char* filepath)
+{
+    for (u32 texIdx = 0; texIdx < app->textures.size(); ++texIdx)
+    {
+        if (app->textures[texIdx].filepath == filepath)
+        {
+            return texIdx;
+        }
+    }
+
+    Image image = Utils::LoadImage(filepath);
+
+    if (image.pixels)
+    {
+        Texture tex = {};
+        tex.handle = Utils::CreateTexture2DFromImage(image);
+        tex.filepath = filepath;
+
+        u32 texIdx = app->textures.size();
+        app->textures.push_back(tex);
+
+        Utils::FreeImage(image);
+        return texIdx;
+    }
+    else
+    {
+        return UINT32_MAX;
+    }
+}
+
+u32 Importer::LoadModel(App* app, const char* filename)
+{
+    const aiScene* scene = aiImportFile(filename,
+        aiProcess_Triangulate |
+        aiProcess_GenSmoothNormals |
+        aiProcess_CalcTangentSpace |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_PreTransformVertices |
+        aiProcess_ImproveCacheLocality |
+        aiProcess_OptimizeMeshes |
+        aiProcess_SortByPType);
+
+    if (!scene)
+    {
+        ELOG("Error loading mesh %s: %s", filename, aiGetErrorString());
+        return UINT32_MAX;
+    }
+
+    app->meshes.push_back(Mesh{});
+    Mesh& mesh      = app->meshes.back();
+    u32 meshIdx     = (u32)app->meshes.size() - 1u;
+
+    app->models.push_back(Model{});
+    Model& model    = app->models.back();
+    model.meshIdx   = meshIdx;
+    u32 modelIdx    = (u32)app->models.size() - 1u;
+
+    String directory = FileManager::GetDirectoryPart(FileManager::MakeString(filename));
+
+    // Create a list of materials
+    u32 baseMeshMaterialIndex = (u32)app->materials.size();
+    for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
+    {
+        app->materials.push_back(Material{});
+        Material& material = app->materials.back();
+        Utils::ProcessAssimpMaterial(app, scene->mMaterials[i], material, directory);
+    }
+
+    Utils::ProcessAssimpNode(scene, scene->mRootNode, &mesh, baseMeshMaterialIndex, model.materialIndices);
+
+    aiReleaseImport(scene);
+
+    u32 vertexBufferSize = 0;
+    u32 indexBufferSize = 0;
+
+    for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+    {
+        vertexBufferSize += mesh.submeshes[i].vertices.size() * sizeof(float);
+        indexBufferSize += mesh.submeshes[i].indices.size() * sizeof(u32);
+    }
+
+    glGenBuffers(1, &mesh.vertexBufferHandle);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.vertexBufferHandle);
+    glBufferData(GL_ARRAY_BUFFER, vertexBufferSize, NULL, GL_STATIC_DRAW);
+
+    glGenBuffers(1, &mesh.indexBufferHandle);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.indexBufferHandle);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBufferSize, NULL, GL_STATIC_DRAW);
+
+    u32 indicesOffset = 0;
+    u32 verticesOffset = 0;
+
+    for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+    {
+        const void* verticesData = mesh.submeshes[i].vertices.data();
+        const u32   verticesSize = mesh.submeshes[i].vertices.size() * sizeof(float);
+        glBufferSubData(GL_ARRAY_BUFFER, verticesOffset, verticesSize, verticesData);
+        mesh.submeshes[i].vertexOffset = verticesOffset;
+        verticesOffset += verticesSize;
+
+        const void* indicesData = mesh.submeshes[i].indices.data();
+        const u32   indicesSize = mesh.submeshes[i].indices.size() * sizeof(u32);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesOffset, indicesSize, indicesData);
+        mesh.submeshes[i].indexOffset = indicesOffset;
+        indicesOffset += indicesSize;
+    }
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    return modelIdx;
+}
+
+// 2D TEXTURE IMPORTER METHODS ----------------------------------------
+GLuint Importer::Utils::CreateTexture2DFromImage(Image image)
+{
+    GLenum internalFormat = GL_RGB8;
+    GLenum dataFormat = GL_RGB;
+    GLenum dataType = GL_UNSIGNED_BYTE;
+
+    switch (image.nchannels)
+    {
+    case 3: dataFormat = GL_RGB;  internalFormat = GL_RGB8;  break;
+    case 4: dataFormat = GL_RGBA; internalFormat = GL_RGBA8; break;
+    default: ELOG("LoadTexture2D() - Unsupported number of channels");
+    }
+
+    GLuint texHandle;
+    glGenTextures(1, &texHandle);
+    glBindTexture(GL_TEXTURE_2D, texHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.size.x, image.size.y, 0, dataFormat, dataType, image.pixels);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    return texHandle;
+}
+
+Image Importer::Utils::LoadImage(const char* filename)
+{
+    stbi_set_flip_vertically_on_load(true);
+
+    Image img = {};
+    img.pixels = stbi_load(filename, &img.size.x, &img.size.y, &img.nchannels, 0);
+    if (img.pixels)
+    {
+        img.stride = img.size.x * img.nchannels;
+    }
+    else
+    {
+        ELOG("Could not open file %s", filename);
+    }
+
+    return img;
+}
+
+void Importer::Utils::FreeImage(Image image)
+{
+    stbi_image_free(image.pixels);
+}
+
+// 3D MODEL IMPORTER METHODS ----------------------------------------
+void Importer::Utils::ProcessAssimpNode(const aiScene* scene, aiNode* node, Mesh* myMesh, u32 baseMeshMaterialIndex, std::vector<u32>& submeshMaterialIndices)
+{
+    // process all the node's meshes (if any)
+    for (unsigned int i = 0; i < node->mNumMeshes; i++)
+    {
+        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+        ProcessAssimpMesh(scene, mesh, myMesh, baseMeshMaterialIndex, submeshMaterialIndices);
+    }
+
+    // then do the same for each of its children
+    for (unsigned int i = 0; i < node->mNumChildren; i++)
+    {
+        ProcessAssimpNode(scene, node->mChildren[i], myMesh, baseMeshMaterialIndex, submeshMaterialIndices);
+    }
+}
+
+void Importer::Utils::ProcessAssimpMesh(const aiScene* scene, aiMesh* mesh, Mesh* myMesh, u32 baseMeshMaterialIndex, std::vector<u32>& submeshMaterialIndices)
 {
     std::vector<float> vertices;
     std::vector<u32> indices;
@@ -82,13 +265,13 @@
 
     // add the submesh into the mesh
     Submesh submesh = {};
-    submesh.vertexBufferLayout = vertexBufferLayout;
+    submesh.VBL = vertexBufferLayout;
     submesh.vertices.swap(vertices);
     submesh.indices.swap(indices);
     myMesh->submeshes.push_back( submesh );
 }
 
-void ProcessAssimpMaterial(App* app, aiMaterial *material, Material& myMaterial, String directory)
+void Importer::Utils::ProcessAssimpMaterial(App* app, aiMaterial *material, Material& myMaterial, String directory)
 {
     aiString name;
     aiColor3D diffuseColor;
@@ -110,137 +293,38 @@ void ProcessAssimpMaterial(App* app, aiMaterial *material, Material& myMaterial,
     if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0)
     {
         material->GetTexture(aiTextureType_DIFFUSE, 0, &aiFilename);
-        String filename = MakeString(aiFilename.C_Str());
-        String filepath = MakePath(directory, filename);
-        myMaterial.albedoTextureIdx = LoadTexture2D(app, filepath.str);
+        String filename             = FileManager::MakeString(aiFilename.C_Str());
+        String filepath             = FileManager::MakePath(directory, filename);
+        myMaterial.albedoTexIdx     = LoadTexture2D(app, filepath.str);
     }
     if (material->GetTextureCount(aiTextureType_EMISSIVE) > 0)
     {
         material->GetTexture(aiTextureType_EMISSIVE, 0, &aiFilename);
-        String filename = MakeString(aiFilename.C_Str());
-        String filepath = MakePath(directory, filename);
-        myMaterial.emissiveTextureIdx = LoadTexture2D(app, filepath.str);
+        String filename             = FileManager::MakeString(aiFilename.C_Str());
+        String filepath             = FileManager::MakePath(directory, filename);
+        myMaterial.emissiveTexIdx   = LoadTexture2D(app, filepath.str);
     }
     if (material->GetTextureCount(aiTextureType_SPECULAR) > 0)
     {
         material->GetTexture(aiTextureType_SPECULAR, 0, &aiFilename);
-        String filename = MakeString(aiFilename.C_Str());
-        String filepath = MakePath(directory, filename);
-        myMaterial.specularTextureIdx = LoadTexture2D(app, filepath.str);
+        String filename             = FileManager::MakeString(aiFilename.C_Str());
+        String filepath             = FileManager::MakePath(directory, filename);
+        myMaterial.specularTexIdx   = LoadTexture2D(app, filepath.str);
     }
     if (material->GetTextureCount(aiTextureType_NORMALS) > 0)
     {
         material->GetTexture(aiTextureType_NORMALS, 0, &aiFilename);
-        String filename = MakeString(aiFilename.C_Str());
-        String filepath = MakePath(directory, filename);
-        myMaterial.normalsTextureIdx = LoadTexture2D(app, filepath.str);
+        String filename             = FileManager::MakeString(aiFilename.C_Str());
+        String filepath             = FileManager::MakePath(directory, filename);
+        myMaterial.normalTexIdx     = LoadTexture2D(app, filepath.str);
     }
     if (material->GetTextureCount(aiTextureType_HEIGHT) > 0)
     {
         material->GetTexture(aiTextureType_HEIGHT, 0, &aiFilename);
-        String filename = MakeString(aiFilename.C_Str());
-        String filepath = MakePath(directory, filename);
-        myMaterial.bumpTextureIdx = LoadTexture2D(app, filepath.str);
+        String filename             = FileManager::MakeString(aiFilename.C_Str());
+        String filepath             = FileManager::MakePath(directory, filename);
+        myMaterial.bumpTexIdx       = LoadTexture2D(app, filepath.str);
     }
 
     //myMaterial.createNormalFromBump();
 }
-
-void ProcessAssimpNode(const aiScene* scene, aiNode *node, Mesh *myMesh, u32 baseMeshMaterialIndex, std::vector<u32>& submeshMaterialIndices)
-{
-    // process all the node's meshes (if any)
-    for(unsigned int i = 0; i < node->mNumMeshes; i++)
-    {
-        aiMesh *mesh = scene->mMeshes[node->mMeshes[i]];
-        ProcessAssimpMesh(scene, mesh, myMesh, baseMeshMaterialIndex, submeshMaterialIndices);
-    }
-
-    // then do the same for each of its children
-    for(unsigned int i = 0; i < node->mNumChildren; i++)
-    {
-        ProcessAssimpNode(scene, node->mChildren[i], myMesh, baseMeshMaterialIndex, submeshMaterialIndices);
-    }
-}
-
-u32 LoadModel(App* app, const char* filename)
-{
-    const aiScene* scene = aiImportFile(filename,
-                                        aiProcess_Triangulate           |
-                                        aiProcess_GenSmoothNormals      |
-                                        aiProcess_CalcTangentSpace      |
-                                        aiProcess_JoinIdenticalVertices |
-                                        aiProcess_PreTransformVertices  |
-                                        aiProcess_ImproveCacheLocality  |
-                                        aiProcess_OptimizeMeshes        |
-                                        aiProcess_SortByPType);
-
-    if (!scene)
-    {
-        ELOG("Error loading mesh %s: %s", filename, aiGetErrorString());
-        return UINT32_MAX;
-    }
-
-    app->meshes.push_back(Mesh{});
-    Mesh& mesh = app->meshes.back();
-    u32 meshIdx = (u32)app->meshes.size() - 1u;
-
-    app->models.push_back(Model{});
-    Model& model = app->models.back();
-    model.meshIdx = meshIdx;
-    u32 modelIdx = (u32)app->models.size() - 1u;
-
-    String directory = GetDirectoryPart(MakeString(filename));
-
-    // Create a list of materials
-    u32 baseMeshMaterialIndex = (u32)app->materials.size();
-    for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
-    {
-        app->materials.push_back(Material{});
-        Material& material = app->materials.back();
-        ProcessAssimpMaterial(app, scene->mMaterials[i], material, directory);
-    }
-
-    ProcessAssimpNode(scene, scene->mRootNode, &mesh, baseMeshMaterialIndex, model.materialIdx);
-
-    aiReleaseImport(scene);
-
-    u32 vertexBufferSize = 0;
-    u32 indexBufferSize = 0;
-
-    for (u32 i = 0; i < mesh.submeshes.size(); ++i)
-    {
-        vertexBufferSize += mesh.submeshes[i].vertices.size() * sizeof(float);
-        indexBufferSize  += mesh.submeshes[i].indices.size()  * sizeof(u32);
-    }
-
-    glGenBuffers(1, &mesh.vertexBufferHandle);
-    glBindBuffer(GL_ARRAY_BUFFER, mesh.vertexBufferHandle);
-    glBufferData(GL_ARRAY_BUFFER, vertexBufferSize, NULL, GL_STATIC_DRAW);
-
-    glGenBuffers(1, &mesh.indexBufferHandle);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.indexBufferHandle);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexBufferSize, NULL, GL_STATIC_DRAW);
-
-    u32 indicesOffset = 0;
-    u32 verticesOffset = 0;
-
-    for (u32 i = 0; i < mesh.submeshes.size(); ++i)
-    {
-        const void* verticesData = mesh.submeshes[i].vertices.data();
-        const u32   verticesSize = mesh.submeshes[i].vertices.size() * sizeof(float);
-        glBufferSubData(GL_ARRAY_BUFFER, verticesOffset, verticesSize, verticesData);
-        mesh.submeshes[i].vertexOffset = verticesOffset;
-        verticesOffset += verticesSize;
-
-        const void* indicesData = mesh.submeshes[i].indices.data();
-        const u32   indicesSize = mesh.submeshes[i].indices.size() * sizeof(u32);
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, indicesOffset, indicesSize, indicesData);
-        mesh.submeshes[i].indexOffset = indicesOffset;
-        indicesOffset += indicesSize;
-    }
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    return modelIdx;
-}*/

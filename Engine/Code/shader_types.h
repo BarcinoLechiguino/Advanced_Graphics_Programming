@@ -63,6 +63,7 @@ struct Material
     f32         smoothness;
     u32         albedoTexIdx;
     u32         emissiveTexIdx;
+    u32         specularTexIdx;
     u32         normalTexIdx;
     u32         bumpTexIdx;
 };
@@ -107,10 +108,10 @@ struct VertexV3V2
     vec2 uv;
 };
 
-enum Mode
+enum class MODE
 {
-    Mode_TexturedQuad,
-    Mode_Count
+    QUAD,
+    MESH
 };
 
 #endif // !__SHADER_TYPES_H__

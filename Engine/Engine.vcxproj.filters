@@ -161,6 +161,9 @@
     <ClInclude Include="Code\primitives.h">
       <Filter>Engine\Helpers\Primitives</Filter>
     </ClInclude>
+    <ClInclude Include="Code\importer.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="WorkingDir\shaders.glsl">

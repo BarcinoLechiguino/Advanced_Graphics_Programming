@@ -117,7 +117,7 @@ int Platform::Init()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        Engine::Gui(&app);
+        Engine::DrawGui(&app);
         ImGui::Render();
 
         // Clear input state if required by ImGui
@@ -130,7 +130,7 @@ int Platform::Init()
                 app.input.mouseButtons[i] = BUTTON_IDLE;
 
         // Update
-        Update(&app);
+        Engine::Update(&app);
 
         // Transition input key/button states
         if (!ImGui::GetIO().WantCaptureKeyboard)
