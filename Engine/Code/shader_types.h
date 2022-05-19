@@ -102,10 +102,17 @@ struct Program
     VertexBufferLayout VIL;                 // Vertex Input Layout.
 };
 
-struct VertexV3V2
+struct Vertex
 {
     vec3 pos;
+    vec3 norm;
     vec2 uv;
+};
+
+struct MeshData
+{
+    std::vector<Vertex> vertices;
+    std::vector<u16>    indices;
 };
 
 enum class MODE

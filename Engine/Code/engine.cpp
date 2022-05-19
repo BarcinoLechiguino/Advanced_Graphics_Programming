@@ -11,6 +11,7 @@
 #include "file_manager.h"
 #include "app.h"
 #include "importer.h"
+#include "primitives.h"
 
 #include "engine.h"
 
@@ -18,12 +19,17 @@ void Engine::Init(App* app)
 {
     app->enableDebugGroups = false;
     
-    app->mode = MODE::QUAD;
+    Primitives::InitPrimitivesData();
     
+    app->mode = MODE::MESH;
+    
+    const char* texPath     = "dice.png";
+    const char* meshPath    = "Patrick/Patrick.obj";
+
     switch (app->mode)
     {
-    case MODE::QUAD: { Renderer::InitQuad(app); }  break;
-    case MODE::MESH: { Renderer::InitMesh(app); }  break;
+    case MODE::QUAD: { Renderer::InitQuad(app, texPath); }  break;
+    case MODE::MESH: { Renderer::InitMesh(app, meshPath); } break;
     default:         { /* NOTHING FOR NOW */ };
     }
 }
@@ -245,13 +251,13 @@ GLuint Engine::FindVAO(Mesh& mesh, u32 submeshIndex, const Program& program)
 }
 
 // RENDERER --------------------------------------------------------------------
-void Engine::Renderer::InitQuad(App* app)
+void Engine::Renderer::InitQuad(App* app, const char* texPath)
 {
-    const VertexV3V2 vertices[] = {
-        { vec3(-0.5, -0.5, 0.0), vec2(0.0, 0.0) },          // 0
-        { vec3( 0.5, -0.5, 0.0), vec2(1.0, 0.0) },          // 1
-        { vec3( 0.5,  0.5, 0.0), vec2(1.0, 1.0) },          // 2
-        { vec3(-0.5,  0.5, 0.0), vec2(0.0, 1.0) }           // 3
+    const Vertex vertices[] = {
+        { vec3(-0.5, -0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 0.0) },          // 0
+        { vec3( 0.5, -0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 0.0) },          // 1
+        { vec3( 0.5,  0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 1.0) },          // 2
+        { vec3(-0.5,  0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 1.0) }           // 3
     };
 
     const u16 indices[] = {
@@ -275,12 +281,12 @@ void Engine::Renderer::InitQuad(App* app)
     glGenVertexArrays(1, &app->vaoQuad);
     glBindVertexArray(app->vaoQuad);
 
-    glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexV3V2), (void*)12);
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
+    glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);                                                       // --------------------------------------
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);                                  // Quads do not take into account normals
+    glEnableVertexAttribArray(0);                                                                               // 
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)24);                                 // Therefore they will not be added to
+    glEnableVertexAttribArray(1);                                                                               // the buffer
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);                                               // --------------------------------------
 
     glBindVertexArray(0);
 
@@ -295,7 +301,7 @@ void Engine::Renderer::InitQuad(App* app)
     }
 
     // TEXTURE
-    app->diceTexIdx = Importer::LoadTexture2D(app, "dice.png");
+    app->diceTexIdx = Importer::LoadTexture2D(app, texPath);
     
     //app->whiteTexIdx    = Importer::LoadTexture2D(app, "color_white.png");
     //app->blackTexIdx    = Importer::LoadTexture2D(app, "color_black.png");
@@ -303,9 +309,9 @@ void Engine::Renderer::InitQuad(App* app)
     //app->magentaTexIdx  = Importer::LoadTexture2D(app, "color_magenta.png");
 }
 
-void Engine::Renderer::InitMesh(App* app)
+void Engine::Renderer::InitMesh(App* app, const char* meshPath)
 {
-    app->modelIdx                       = Importer::LoadModel(app, "Patrick/Patrick.obj");
+    app->modelIdx                       = Importer::LoadModel(app, meshPath);
     app->texMeshProgramIdx              = LoadProgram(app, "shaders.glsl", "TEXTURED_MESH");
     Program& texMeshProgram             = app->programs[app->texMeshProgramIdx];
     app->texMeshProgramUniformTexture   = glGetUniformLocation(texMeshProgram.handle, "uTexture");

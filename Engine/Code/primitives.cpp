@@ -1,26 +1,39 @@
-#ifndef __PRIMITIVES_H__
-#define __PRIMITIVES_H__
+#include "primitives.h"
 
-#include <vector>
-
-#include "base_types.h"
-#include "shader_types.h"
-
-struct Sphere
+void Primitives::InitPrimitivesData()
 {
-	void Init();
+	Utils::InitPlaneData();
+	Utils::InitCubeData();
+	Utils::InitSphereData();
+}
 
-	std::vector<float>	vertices;
-	std::vector<float>	normals;
-	std::vector<u32>	indices;
-
-	VertexBufferAttribute VBA;
-
-};
-
-struct Plane
+const MeshData& Primitives::GetPlaneData()
 {
+	return Utils::planeData;
+}
 
-};
+const MeshData& Primitives::GetCubeData()
+{
+	return Utils::cubeData;
+}
 
-#endif // !__PRIMITIVES_H__
+const MeshData& Primitives::GetSphereData()
+{
+	return Utils::sphereData;
+}
+
+
+void Primitives::Utils::InitPlaneData()
+{	
+	
+}
+
+void Primitives::Utils::InitCubeData()
+{
+	
+}
+
+void Primitives::Utils::InitSphereData()
+{
+	sphereData.vertices.push_back(Vertex());
+}

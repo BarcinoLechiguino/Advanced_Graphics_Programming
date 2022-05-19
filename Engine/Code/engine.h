@@ -31,8 +31,8 @@ namespace Engine
 
 	namespace Renderer
 	{
-		void InitQuad	(App* app);
-		void InitMesh	(App* app);
+		void InitQuad	(App* app, const char* texPath);
+		void InitMesh	(App* app, const char* meshPath);
 
 		void RenderQuad	(App* app);
 		void RenderMesh	(App* app);
