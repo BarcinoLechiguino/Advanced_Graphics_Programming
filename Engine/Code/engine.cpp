@@ -8,9 +8,11 @@
 #include <imgui.h>
 
 #include "globals.h"
-#include "file_manager.h"
 #include "app.h"
+#include "file_manager.h"
 #include "importer.h"
+#include "transform.h"
+#include "camera.h"
 #include "primitives.h"
 
 #include "engine.h"
@@ -18,6 +20,9 @@
 void Engine::Init(App* app)
 {
     app->enableDebugGroups = false;
+    
+    Camera::InitCamera(app);
+    Camera::InitWorldTransform(app);
     
     Shaders::LoadBaseTextures(app);
     Shaders::CreateDefaultMaterial(app);
@@ -34,16 +39,14 @@ void Engine::Init(App* app)
     case MODE::MESH: { Renderer::InitMesh(app, meshPath); } break;
     default:         { /* NOTHING FOR NOW */ };
     }
-
-    //float aspectRatio   = (float)app->displaySize.x / (float)app->displaySize.y;
-    //float znear         = 0.1;
-    //float zfar          = 1000.0f;
-    //mat4 projection     = perspective(radians(60.0f), aspecRation, znear, zfar);
-    //mat4 view           = lookAt(camera.position, camera.target, upVector);
 }
 
 void Engine::Update(App* app)
 {
+    Input::GetInput(app);
+    
+    app->camera.SetViewMatrix(glm::translate(app->camera.GetPosition()));
+    
     for (u64 i = 0; i < app->programs.size(); ++i)
     {
         Program& program = app->programs[i];
@@ -69,12 +72,17 @@ void Engine::Render(App* app)
         glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1, -1, "Shaded Model");
     }
     
+    glPushMatrix();
+    glMultMatrixf((GLfloat*)&Transform::PositionScale(app->camera.position, Transform::defaultScale)[0]);
+
     switch (app->mode)
     {
     case MODE::QUAD: { Renderer::RenderQuad(app); } break;
     case MODE::MESH: { Renderer::RenderMesh(app); } break;
     default:         { /*NOTHING AT THE MOMENT*/ };
     }
+
+    glPopMatrix();
 
     if (app->enableDebugGroups)
     {
@@ -96,7 +104,7 @@ void Engine::Render(App* app)
 
 void Engine::DrawGui(App* app)
 {
-    Gui::InfoTab(app);
+    Gui::GeneralTab(app);
     Gui::ExtensionsTab(app);
 }
 
@@ -256,6 +264,40 @@ GLuint Engine::FindVAO(Mesh& mesh, u32 submeshIndex, const Program& program)
     submesh.vaos.push_back(vao);
 
     return vaoHandle;
+}
+
+// INPUT ----------------------------------------------------------------------
+void Engine::Input::GetInput(App* app)
+{   
+    // DEBUG
+    if (app->input.keys[K_SPACE] == BUTTON_PRESS) { app->enableDebugGroups = !app->enableDebugGroups; }
+
+    // CAMERA
+    vec3 position = app->camera.GetPosition();
+    
+    if (app->input.keys[K_W] == BUTTON_PRESSED) 
+    { 
+        position.z += app->camera.moveSpeed * app->deltaTime; 
+    }
+    if (app->input.keys[K_A] == BUTTON_PRESSED) { position.x += app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_S] == BUTTON_PRESSED) { position.z -= app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_D] == BUTTON_PRESSED) { position.x -= app->camera.moveSpeed * app->deltaTime; }
+
+    app->camera.SetPosition(position);
+}
+
+// CAMERA ----------------------------------------------------------------------
+void Engine::Camera::InitCamera(App* app)
+{
+    app->camera.SetAspectRatio((float)app->displaySize.x / (float)app->displaySize.y);
+    app->camera.SetProjMatrix(glm::radians(60.0f));
+    app->camera.SetViewMatrix(glm::lookAt(app->camera.position, app->camera.target, Transform::upVector));
+}
+
+void Engine::Camera::InitWorldTransform(App* app)
+{
+    app->worldMatrix            = Transform::PositionScale(Transform::upVector, Transform::defaultScale);
+    app->worldViewProjMatrix    = app->camera.GetProjMatrix() * app->camera.GetViewMatrix() * app->worldMatrix;
 }
 
 // SHADERS ----------------------------------------------------------------------
@@ -441,12 +483,16 @@ void Engine::Renderer::RenderMesh(App* app)
 
 
 // GUI -------------------------------------------------------------------------
-void Engine::Gui::InfoTab(App* app)
+void Engine::Gui::GeneralTab(App* app)
 {
-    ImGui::Begin("Info");
+    ImGui::Begin("General");
 
     ImGui::Text("FPS: %f", 1.0f / app->deltaTime);
     ImGui::Checkbox("Enable debug groups", &app->enableDebugGroups);
+    
+    ImGui::Separator();
+    
+    CameraTab(app);
 
     ImGui::End();
 }
@@ -475,4 +521,17 @@ void Engine::Gui::ExtensionsTab(App* app)
     }
 
     ImGui::End();
+}
+
+void Engine::Gui::CameraTab(App* app)
+{
+    //ImGui::Begin("Camera");
+
+    vec3 position = app->camera.GetPosition();
+    if (ImGui::DragFloat("X", (float*)&position.x, 0.1)) { app->camera.SetPosition(position); }
+    if (ImGui::DragFloat("Y", (float*)&position.y, 0.1)) { app->camera.SetPosition(position); }
+    if (ImGui::DragFloat("Z", (float*)&position.z, 0.1)) { app->camera.SetPosition(position); }
+
+
+    //ImGui::End();
 }

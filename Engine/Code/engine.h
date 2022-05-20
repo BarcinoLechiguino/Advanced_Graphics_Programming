@@ -24,6 +24,12 @@ namespace Engine
 	GLuint	CreateVAO					(Mesh& mesh, Submesh& submesh, const Program& program);
 	GLuint	FindVAO						(Mesh& mesh, u32 submeshIndex, const Program& program);
 
+	namespace Camera
+	{
+		void InitCamera					(App* app);
+		void InitWorldTransform			(App* app);
+	}
+	
 	namespace Input
 	{
 		void GetInput(App* app);
@@ -31,23 +37,24 @@ namespace Engine
 
 	namespace Shaders
 	{
-		void LoadBaseTextures		(App* app);
-		void CreateDefaultMaterial	(App* app);
+		void LoadBaseTextures			(App* app);
+		void CreateDefaultMaterial		(App* app);
 	}
 
 	namespace Renderer
 	{
-		void InitQuad	(App* app, const char* texPath);
-		void InitMesh	(App* app, const char* meshPath);
+		void InitQuad					(App* app, const char* texPath);
+		void InitMesh					(App* app, const char* meshPath);
 
-		void RenderQuad	(App* app);
-		void RenderMesh	(App* app);
+		void RenderQuad					(App* app);
+		void RenderMesh					(App* app);
 	}
 
 	namespace Gui
 	{
-		void InfoTab					(App* app);
+		void GeneralTab					(App* app);
 		void ExtensionsTab				(App* app);
+		void CameraTab					(App* app);
 	}
 }
 

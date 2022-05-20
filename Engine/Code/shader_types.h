@@ -9,6 +9,13 @@
 #include "base_types.h"
 #include "math_types.h"
 
+// RENDER MODE
+enum class MODE
+{
+    QUAD,
+    MESH
+};
+
 // BUFFERS
 struct VAO
 {
@@ -100,6 +107,13 @@ struct Model
     std::vector<u32> materialIndices;
 };
 
+struct Entity
+{
+    Model model;
+    mat4  transform;
+    MODE  mode;
+};
+
 struct Program
 {
     GLuint             handle;
@@ -117,12 +131,6 @@ struct Vertex
     vec2 uv;                                // UV           xy
     vec3 t;                                 // Tangent      xyz
     vec3 bt;                                // BiTangent    xyz
-};
-
-enum class MODE
-{
-    QUAD,
-    MESH
 };
 
 #endif // !__SHADER_TYPES_H__

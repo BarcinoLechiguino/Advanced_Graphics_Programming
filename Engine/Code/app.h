@@ -2,8 +2,10 @@
 #define __APP_H__
 
 #include "base_types.h"
+#include "math_types.h"
 #include "shader_types.h"
 #include "input.h"
+#include "camera.h"
 
 struct App
 {
@@ -16,6 +18,10 @@ public:
 public:
     ivec2 displaySize;                                                  // Window (?)
 
+    Camera camera;
+
+    mat4 worldMatrix;
+    mat4 worldViewProjMatrix;
 
 public:                                                                 // OpenGL Vars -----------------------------
     MODE mode;                                                          // Rendering mode.

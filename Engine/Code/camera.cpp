@@ -1,26 +1,29 @@
+#include "app.h"
+
 #include "camera.h"
 
-mat4 Camera::TransformPosition(const vec3& pos)
+Camera::Camera() :
+position		({ 0.0f, 0.0f, -20.0f }),
+target			({ 0.0f, 0.0f, 0.0f }),
+moveSpeed		(100.0f),
+aspectRatio		(0.0f),
+nearPlane		(0.1f),
+farPlane		(1000.0f),
+projectionMatrix(mat4(0.0f)),
+viewMatrix		(lookAt(position, target, vec3(0.0f, 1.0f, 0.0f)))
 {
-	mat4 transform = translate(pos);
-	return transform;
+
 }
 
-mat4 Camera::TransformRotation(const float angleRad, const vec3& axis)
+Camera::Camera(App* app) :
+position		({ 0.0f, 0.0f, -20.0f }),
+target			({ 0.0f, 0.0f, 0.0f }),
+moveSpeed		(100.0f),
+aspectRatio		((float)app->displaySize.x / (float)app->displaySize.y),
+nearPlane		(0.1f),
+farPlane		(1000.0f),
+projectionMatrix(mat4(0.0f)),
+viewMatrix		(lookAt(position, target, vec3(0.0f, 1.0f, 0.0f)))
 {
-	mat4 transform = rotate(angleRad, axis);
-	return transform;
-}
 
-mat4 Camera::TransformScale(const vec3& scaleFactor)
-{
-	mat4 transform = scale(scaleFactor); 
-	return transform;
-}
-
-mat4 Camera::TransformPositionScale(const vec3& pos, const vec3& scaleFactor)
-{
-	mat4 transform = translate(pos);
-	transform = scale(scaleFactor);
-	return transform;
 }

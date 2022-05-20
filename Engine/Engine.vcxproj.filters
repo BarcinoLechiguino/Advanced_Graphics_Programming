@@ -37,6 +37,12 @@
     <Filter Include="Engine\Helpers\Primitives">
       <UniqueIdentifier>{55b22482-621e-4337-bc2b-397e68234664}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Helpers\Transform">
+      <UniqueIdentifier>{5a1cdc10-3c92-4520-822c-86f4d7ce1b70}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Engine\Helpers\Camera">
+      <UniqueIdentifier>{da5b48ae-1c5e-4a72-a19d-b61c4cf3886f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp">
@@ -91,7 +97,10 @@
       <Filter>Engine\Helpers\Primitives</Filter>
     </ClCompile>
     <ClCompile Include="Code\camera.cpp">
-      <Filter>Engine</Filter>
+      <Filter>Engine\Helpers\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\transform.cpp">
+      <Filter>Engine\Helpers\Transform</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -168,7 +177,10 @@
       <Filter>Engine</Filter>
     </ClInclude>
     <ClInclude Include="Code\camera.h">
-      <Filter>Engine</Filter>
+      <Filter>Engine\Helpers\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\transform.h">
+      <Filter>Engine\Helpers\Transform</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
