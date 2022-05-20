@@ -90,6 +90,9 @@
     <ClCompile Include="Code\primitives.cpp">
       <Filter>Engine\Helpers\Primitives</Filter>
     </ClCompile>
+    <ClCompile Include="Code\camera.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ThirdParty\imgui-docking\imconfig.h">
@@ -162,6 +165,9 @@
       <Filter>Engine\Helpers\Primitives</Filter>
     </ClInclude>
     <ClInclude Include="Code\importer.h">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\camera.h">
       <Filter>Engine</Filter>
     </ClInclude>
   </ItemGroup>

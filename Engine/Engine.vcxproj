@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Code\camera.cpp" />
     <ClCompile Include="Code\importer.cpp" />
     <ClCompile Include="Code\engine.cpp" />
     <ClCompile Include="Code\file_manager.cpp" />
@@ -40,6 +41,7 @@
   <ItemGroup>
     <ClInclude Include="Code\app.h" />
     <ClInclude Include="Code\base_types.h" />
+    <ClInclude Include="Code\camera.h" />
     <ClInclude Include="Code\engine.h" />
     <ClInclude Include="Code\file_manager.h" />
     <ClInclude Include="Code\globals.h" />

@@ -13,13 +13,17 @@ public:
 
     Input input;                                                        // Input
 
+public:
     ivec2 displaySize;                                                  // Window (?)
+
 
 public:                                                                 // OpenGL Vars -----------------------------
     MODE mode;                                                          // Rendering mode.
 
     u32 texQuadProgramIdx;                                              // Index of a given geometry program.
     u32 texMeshProgramIdx;                                              // Index of a given mesh program.
+    
+    u32 quadTexIdx;                                                     // Buffer index of the quad texture.
     
     u32 diceTexIdx;                                                     // Buffer index of the dice texture.
     u32 whiteTexIdx;                                                    // Buffer index of the white texture.
@@ -41,6 +45,8 @@ public:                                                                 // Conta
     std::vector<Model>      models;                                     // Will store all active models.
     std::vector<Program>    programs;                                   // Will store all active programs.
 
+    u32 defaultMaterialIdx;
+    
     u32 modelIdx;
     u32 texMeshProgramUniformTexture;
 

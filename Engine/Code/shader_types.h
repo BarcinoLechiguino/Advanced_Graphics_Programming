@@ -25,6 +25,14 @@ struct VertexBufferAttribute
 
 struct VertexBufferLayout
 {
+    VertexBufferLayout() : stride(0) {}
+    
+    void AddAttribute(u8 loc, u8 ncomp, size_t varSize) 
+    { 
+        attributes.push_back({ loc, ncomp, stride }); 
+        stride += ncomp * varSize; 
+    }
+    
     std::vector<VertexBufferAttribute>  attributes;
     u8                                  stride;
 };
@@ -70,12 +78,12 @@ struct Material
 
 struct Submesh
 {
-    VertexBufferLayout  VBL;                    // Vertex Buffer Layout
     std::vector<float>  vertices;               // Create Vertex struct?
     std::vector<u32>    indices;
     u32                 vertexOffset;
     u32                 indexOffset;
 
+    VertexBufferLayout  VBL;                    // Vertex Buffer Layout
     std::vector<VAO>    vaos;
 };
 
@@ -104,15 +112,11 @@ struct Program
 
 struct Vertex
 {
-    vec3 pos;
-    vec3 norm;
-    vec2 uv;
-};
-
-struct MeshData
-{
-    std::vector<Vertex> vertices;
-    std::vector<u16>    indices;
+    vec3 pos;                               // Position     xyz
+    vec3 norm;                              // Normal       xyz
+    vec2 uv;                                // UV           xy
+    vec3 t;                                 // Tangent      xyz
+    vec3 bt;                                // BiTangent    xyz
 };
 
 enum class MODE

@@ -19,8 +19,10 @@ void Engine::Init(App* app)
 {
     app->enableDebugGroups = false;
     
-    Primitives::InitPrimitivesData();
-    
+    Shaders::LoadBaseTextures(app);
+    Shaders::CreateDefaultMaterial(app);
+    Primitives::InitPrimitivesData(app);
+
     app->mode = MODE::MESH;
     
     const char* texPath     = "dice.png";
@@ -32,6 +34,12 @@ void Engine::Init(App* app)
     case MODE::MESH: { Renderer::InitMesh(app, meshPath); } break;
     default:         { /* NOTHING FOR NOW */ };
     }
+
+    //float aspectRatio   = (float)app->displaySize.x / (float)app->displaySize.y;
+    //float znear         = 0.1;
+    //float zfar          = 1000.0f;
+    //mat4 projection     = perspective(radians(60.0f), aspecRation, znear, zfar);
+    //mat4 view           = lookAt(camera.position, camera.target, upVector);
 }
 
 void Engine::Update(App* app)
@@ -250,20 +258,44 @@ GLuint Engine::FindVAO(Mesh& mesh, u32 submeshIndex, const Program& program)
     return vaoHandle;
 }
 
+// SHADERS ----------------------------------------------------------------------
+void Engine::Shaders::LoadBaseTextures(App* app)
+{
+    app->diceTexIdx     = Importer::LoadTexture2D(app, "dice.png");
+    app->whiteTexIdx    = Importer::LoadTexture2D(app, "color_white.png");
+    app->blackTexIdx    = Importer::LoadTexture2D(app, "color_black.png");
+    app->normalTexIdx   = Importer::LoadTexture2D(app, "color_normal.png");
+    app->magentaTexIdx  = Importer::LoadTexture2D(app, "color_magenta.png");
+}
+
+void Engine::Shaders::CreateDefaultMaterial(App* app)
+{
+    app->materials.push_back(Material{});
+    Material& material = app->materials.back();
+    app->defaultMaterialIdx = app->materials.size() - 1u;
+
+    material.name       = "Default";
+    material.albedo     = vec3(1.0f, 1.0f, 1.0f);
+    material.emissive   = vec3(1.0f, 1.0f, 1.0f);
+    material.smoothness = 1.0f;
+    
+    material.albedoTexIdx = app->whiteTexIdx;
+}
+
 // RENDERER --------------------------------------------------------------------
 void Engine::Renderer::InitQuad(App* app, const char* texPath)
 {
-    const Vertex vertices[] = {
-        { vec3(-0.5, -0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 0.0) },          // 0
-        { vec3( 0.5, -0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 0.0) },          // 1
-        { vec3( 0.5,  0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 1.0) },          // 2
-        { vec3(-0.5,  0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 1.0) }           // 3
-    };
+    const Vertex vertices[] = {// Positions              Normals              UVs             Tangents             BiTangents
+                                { vec3(-0.5, -0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 0
+                                { vec3( 0.5, -0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 1
+                                { vec3( 0.5,  0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 1.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 2
+                                { vec3(-0.5,  0.5, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 1.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) }           // 3
+                              };
 
-    const u16 indices[] = {
-        0, 1, 2,
-        0, 2, 3
-    };
+    const u32 indices[]     = {
+                                0, 1, 2,
+                                0, 2, 3
+                              };
 
     // VERTEX BUFFER
     glGenBuffers(1, &app->embeddedVertices);
@@ -282,10 +314,16 @@ void Engine::Renderer::InitQuad(App* app, const char* texPath)
     glBindVertexArray(app->vaoQuad);
 
     glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);                                                       // --------------------------------------
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);                                  // Quads do not take into account normals
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);                                  // Positions
     glEnableVertexAttribArray(0);                                                                               // 
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)24);                                 // Therefore they will not be added to
-    glEnableVertexAttribArray(1);                                                                               // the buffer
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 3));                // Normals
+    glEnableVertexAttribArray(1);                                                                               // 
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 6));                // UVs
+    glEnableVertexAttribArray(2);                                                                               // 
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 8));                // Tangents
+    glEnableVertexAttribArray(3);                                                                               // 
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 11));               // Bitangents
+    glEnableVertexAttribArray(4);                                                                               // 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);                                               // --------------------------------------
 
     glBindVertexArray(0);
@@ -301,12 +339,7 @@ void Engine::Renderer::InitQuad(App* app, const char* texPath)
     }
 
     // TEXTURE
-    app->diceTexIdx = Importer::LoadTexture2D(app, texPath);
-    
-    //app->whiteTexIdx    = Importer::LoadTexture2D(app, "color_white.png");
-    //app->blackTexIdx    = Importer::LoadTexture2D(app, "color_black.png");
-    //app->normalTexIdx   = Importer::LoadTexture2D(app, "color_normal.png");
-    //app->magentaTexIdx  = Importer::LoadTexture2D(app, "color_magenta.png");
+    app->quadTexIdx = Importer::LoadTexture2D(app, texPath);  
 }
 
 void Engine::Renderer::InitMesh(App* app, const char* meshPath)
@@ -357,10 +390,10 @@ void Engine::Renderer::RenderQuad(App* app)
 
     glUniform1i(app->programUniformTexture, 0);
     glActiveTexture(GL_TEXTURE0);
-    GLuint textureHandle = app->textures[app->diceTexIdx].handle;
+    GLuint textureHandle = app->textures[app->quadTexIdx].handle;
     glBindTexture(GL_TEXTURE_2D, textureHandle);
 
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, 0);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
     glBindVertexArray(0);
     glUseProgram(0);
@@ -373,31 +406,39 @@ void Engine::Renderer::RenderMesh(App* app)
 
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
     
+    
     Program& texturedMeshProgram = app->programs[app->texMeshProgramIdx];
     glUseProgram(texturedMeshProgram.handle);
-
-    Model& model = app->models[app->modelIdx];
-    Mesh& mesh = app->meshes[model.meshIdx];
-
-    for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+    
+    for (u32 i = 0; i < app->models.size(); ++i)
     {
-        GLuint VAO = FindVAO(mesh, i, texturedMeshProgram);
-        glBindVertexArray(VAO);
+        //Model& model = app->models[app->modelIdx];
+        Model& model = app->models[i];
+        Mesh& mesh   = app->meshes[model.meshIdx];
 
-        u32 submeshMaterialIdx = model.materialIndices[i];
-        Material& submeshMaterial = app->materials[submeshMaterialIdx];
+        for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+        {
+            GLuint VAO = FindVAO(mesh, i, texturedMeshProgram);
+            glBindVertexArray(VAO);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
-        glUniform1i(app->texMeshProgramUniformTexture, 0);
+            u32 submeshMaterialIdx = model.materialIndices[i];
+            Material& submeshMaterial = app->materials[submeshMaterialIdx];
 
-        Submesh& submesh = mesh.submeshes[i];
-        glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
+            glUniform1i(app->texMeshProgramUniformTexture, 0);
+
+            Submesh& submesh = mesh.submeshes[i];
+            glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
+        }
+
+        glBindVertexArray(0);
     }
-
-    glBindVertexArray(0);
+    
     glUseProgram(0);
 }
+
+
 
 // GUI -------------------------------------------------------------------------
 void Engine::Gui::InfoTab(App* app)

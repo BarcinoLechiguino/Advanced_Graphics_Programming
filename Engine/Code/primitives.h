@@ -3,23 +3,25 @@
 
 #include "shader_types.h"
 
+struct App;
+
 namespace Primitives
 {
-	void InitPrimitivesData	();
+	void InitPrimitivesData	(App* app);
 
-	const MeshData& GetPlaneData	();
-	const MeshData& GetCubeData		();
-	const MeshData& GetSphereData	();
+	const u32 GetPlaneIdx	();
+	const u32 GetCubeIdx	();
+	const u32 GetSphereIdx	();
 
 	namespace Utils
 	{
-		void InitPlaneData	();
-		void InitCubeData	();
-		void InitSphereData	();
+		void InitPlaneData	(App* app);
+		void InitCubeData	(App* app);
+		void InitSphereData	(App* app);
 
-		static MeshData planeData;
-		static MeshData cubeData;
-		static MeshData sphereData;
+		static u32 planeIdx;
+		static u32 cubeIdx;
+		static u32 sphereIdx;
 	}
 }
 

@@ -29,6 +29,12 @@ namespace Engine
 		void GetInput(App* app);
 	}
 
+	namespace Shaders
+	{
+		void LoadBaseTextures		(App* app);
+		void CreateDefaultMaterial	(App* app);
+	}
+
 	namespace Renderer
 	{
 		void InitQuad	(App* app, const char* texPath);
