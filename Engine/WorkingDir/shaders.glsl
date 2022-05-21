@@ -76,6 +76,17 @@ void main()
 
 #ifdef TEXTURED_ENTITY
 
+struct Light
+{
+	unsigned int type;
+	vec3		 color;
+	vec3		 direction;
+	vec3		 position;
+};
+
+#define LT_DIRECTIONAL	0
+#define LT_POINT		1
+
 #if defined(VERTEX)	///////////////////////////////////////////////////
 
 layout(location = 0) in vec3 aPosition;
@@ -122,9 +133,51 @@ uniform sampler2D uTexture;
 
 layout(location = 0) out vec4 oColor;
 
+layout(binding = 0, std140) uniform GlobalParams
+{
+	vec3		 uCameraPosition;
+	unsigned int uLightCount;
+	Lignt		 uLight[10];
+};
+
 void main()
 {
-	oColor = texture(uTexture, vTexCoord);
+	vec4 texColor		= texture(uTexture, vTexCoord);
+	vec3 outputColor	= vec3(0.0, 0.0, 0.0);
+
+	for (unsigned int i = 0; i < uLightCount; ++i)
+	{
+		Light light			= uLight[i];
+		vec3  normDir		= vec3(0.0, 0.0, 0.0);
+		float attenuation	= 1.0;
+		
+		if (light.type == LT_DIRECTIONAL)
+		{ 
+			normDir = normalize(light.direction); 
+		}
+		else if (light.type == LT_POINT)
+		{ 
+			vec3 distVec = (light.position - vPosition);
+			
+			normDir		= normalize(distVec); 
+			float dist	= length(distVec);
+
+			attenuation = 1.0 / (1.0 + 0.09 * dist + 0.032 * (dist * dist));
+		}
+
+		vec3 rfltDir	= reflect(-normDir, normalize(vNormal));
+
+		float dVal		= max(dot(normalize(vNormal), normDir), 0.0);
+		float sVal		= pow(max(dot(vViewDir, rfltDir), 0.0), 0.8);
+		
+		vec3 diffuse	= dVal * dirLight.color * texColor.xyz * 0.7;
+		vec3 ambient	= dirLight.color * texColor.xyz * 0.2;
+		vec3 specular	= sVal * dirLight.color * texColor.xyz * 0.1;
+
+		outputColor += (specular + diffuse + ambient) * attenuation;
+	}
+	
+	oColor = vec4(outputColor, 1.0);
 }
 
 #endif	///////////////////////////////////////////////////////////////

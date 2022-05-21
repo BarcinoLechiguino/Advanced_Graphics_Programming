@@ -148,4 +148,18 @@ struct Vertex
     vec3 bt;                                // BiTangent    xyz
 };
 
+enum LIGHT_TYPE
+{
+    LT_DIRECTIONAL,
+    LT_POINT
+};
+
+struct Light
+{
+    LIGHT_TYPE  type;
+    vec3        color;
+    vec3        direction;
+    vec3        position;
+};
+
 #endif // !__SHADER_TYPES_H__

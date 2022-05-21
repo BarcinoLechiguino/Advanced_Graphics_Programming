@@ -49,7 +49,7 @@ u32 BufferManager::Align(u32 value, u32 alignment)
 	return (value + alignment - 1) & ~(alignment - 1);
 }
 
-u32 BufferManager::AlignHead(Buffer& buffer, u32 alignment)
+void BufferManager::AlignHead(Buffer& buffer, u32 alignment)
 {
 	assert(IsPowerOfTwo(alignment), "Alignment must be a power of 2!");
 	buffer.head = Align(buffer.head, alignment);

@@ -15,7 +15,7 @@ namespace BufferManager
 	bool	IsPowerOfTwo	(u32 value);
 	
 	u32		Align			(u32 value, u32 alignment);
-	u32		AlignHead		(Buffer& buffer, u32 alignment);
+	void	AlignHead		(Buffer& buffer, u32 alignment);
 	void	PushAlignedData	(Buffer& buffer, const void* data, u32 size, u32 alignment);
 
 	void	BindBufferRange(size_t varSize, u32 binding, u32 bufferHandle, u32 blockOffset);

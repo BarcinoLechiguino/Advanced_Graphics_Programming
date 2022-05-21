@@ -49,46 +49,57 @@ void Engine::Init(App* app)
 
 void Engine::Update(App* app)
 {
-    Input::GetInput(app);
-    
-    app->camera.SetViewMatrix(glm::translate(app->camera.GetPosition()));
-    
     // -- UNIFORM BUFFER?
     /*GLuint bufferHandle;
     glGenBuffers(1, &bufferHandle);
     glBindBuffer(GL_UNIFORM_BUFFER, bufferHandle);
     glBufferData(GL_UNIFORM_BUFFER, app->maxUniformBufferSize, NULL, GL_STREAM_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
-    
-    glBindBuffer(GL_UNIFORM_BUFFER, bufferHandle);
-    u8* bufferData = (u8*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-    u32 bufferHead = 0;
-    
-    memcpy(bufferData + bufferHead, glm::value_ptr(app->worldMatrix), sizeof(glm::mat4));
-    bufferHead += sizeof(glm::mat4);
-
-    memcpy(bufferData + bufferHead, glm::value_ptr(app->worldViewProjMatrix), sizeof(glm::mat4));
-    bufferHead += sizeof(glm::mat4);
-
-    glUnmapBuffer(GL_UNIFORM_BUFFER);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);*/
+    
+    Input::GetInput(app);
+    
+    app->camera.SetViewMatrix(glm::translate(app->camera.GetPosition()));
+    
+    //glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
 
-    glBindBuffer(GL_UNIFORM_BUFFER, app->cbuffer.handle);
-    u8* bufferData = (u8*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-    u32 bufferHead = 0;
-    for (u32 i = 0; i < app->entities.size(); ++i)
+    if (app->mode == MODE::ENTITIES)
     {
-        bufferHead = BufferManager::AlignHead(bufferHead, app->uniformBlockAlignment);
+        BufferManager::MapBuffer(app->cbuffer, GL_WRITE_ONLY);
+        app->globalParamsOffset = app->cbuffer.head;
 
-        app->entities[i].localParamsOffset = bufferHead;
+        PushVec3(app->cbuffer, app->camera.position);
 
-        memcpy(bufferData + bufferHead, glm::value_ptr(app->worldMatrix), sizeof(glm::mat4));
-        bufferHead += sizeof(glm::mat4);
+        PushUInt(app->cbuffer, app->activeLights);
+        for (u32 i = 0; i < app->activeLights; ++i)
+        {
+            BufferManager::AlignHead(app->cbuffer, sizeof(vec4));
 
-        memcpy(bufferData + bufferHead, glm::value_ptr(app->worldViewProjMatrix), sizeof(glm::mat4));
-        bufferHead += sizeof(glm::mat4);
+            Light& light = app->lights[i];
+            PushUInt(app->cbuffer, light.type);
+            PushVec3(app->cbuffer, light.color);
+            PushVec3(app->cbuffer, light.direction);
+            PushVec3(app->cbuffer, light.position);
+        }
 
-        app->entities[i].localParamsSize = bufferHead - app->entities[i].localParamsOffset;
+        app->globalParamsSize = app->cbuffer.head - app->globalParamsOffset;
+
+        for (int i = 0; i < app->activeLights; ++i)
+        {
+            BufferManager::AlignHead(app->cbuffer, app->uniformBlockAlignment);
+
+            Entity& entity = app->entities[i];
+            entity.localParamsOffset = app->cbuffer.head;
+
+            PushMat4(app->cbuffer, entity.worldMatrix);
+            PushMat4(app->cbuffer, app->camera.GetProjMatrix() * app->camera.GetViewMatrix() * entity.worldMatrix);
+
+            entity.localParamsSize = app->cbuffer.head - entity.localParamsOffset;
+        }
+
+        //BufferManager::UnmapBuffer(app->cbuffer);
+        //BufferManager::UnbindBuffer(app->cbuffer);
+        glUnmapBuffer(GL_UNIFORM_BUFFER);
+        glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
 
     // SHADERS HOT RELOADING
@@ -479,6 +490,11 @@ void Engine::Renderer::InitEntities(App* app)
     //app->entities.push_back({ "Sphere_1",   Transform::PositionScale({ 0.0f, 2.0f,  0.0f }, Transform::defaultScale),   sphereIdx,          0,          0           });
     //app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, Transform::defaultScale),   planeIdx,           0,          0           });
 
+    // LIGHTS
+    //                      LIGHT TYPE      COLOR                 DIRECTION                 POSITION 
+    app->lights.push_back({ LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f, -1.0f },  { 1.0f, 1.0f,  1.0f } });
+    app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
+
     // SHADER
     app->texMeshProgramIdx              = LoadProgram(app, "shaders.glsl", "TEXTURED_ENTITIES");
     Program& texMeshProgram             = app->programs[app->texMeshProgramIdx];
@@ -507,7 +523,7 @@ void Engine::Renderer::InitEntities(App* app)
         texMeshProgram.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
     }
 
-    app->cbuffer = BufferManager::CreateConstantBuffer(app->maxUniformBufferSize);
+    app->cbuffer = CreateConstantBuffer(app->maxUniformBufferSize);
 }
 
 void Engine::Renderer::RenderQuad(App* app)

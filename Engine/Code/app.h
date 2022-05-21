@@ -45,18 +45,26 @@ public:                                                                 // OpenG
     GLuint  programUniformTexture;                                      // Location of the texture uniform in the textured quad shader
     
     GLuint  vaoQuad;                                                    // VAO object to link our screen filling quad with our textured quad shader
-
+    
     Buffer  cbuffer;
     GLint   maxUniformBufferSize;
     GLint   uniformBlockAlignment;
 
+    u32     globalParamsOffset;
+    u32     globalParamsSize;
+
+    GLuint  framebufferHandle;
+
 public:                                                                 // Containers ------------------------------
     std::vector<Entity>     entities;                                   // Will store all active entities.
+    std::vector<Light>      lights;                                     // Will store all active lights.
     std::vector<Texture>    textures;                                   // Will store all active textures.
     std::vector<Material>   materials;                                  // Will store all active materials.
     std::vector<Mesh>       meshes;                                     // Will store all active meshes.
     std::vector<Model>      models;                                     // Will store all active models.
     std::vector<Program>    programs;                                   // Will store all active programs.
+
+    u32 activeLights;
 
     u32 defaultMaterialIdx;
     
