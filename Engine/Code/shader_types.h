@@ -13,10 +13,21 @@
 enum class MODE
 {
     QUAD,
-    MESH
+    MESH,
+    ENTITIES
 };
 
 // BUFFERS
+struct Buffer
+{
+    GLuint  handle;
+    GLenum  type;
+    u32     size;
+    u32     head;
+
+    void*   data;
+};
+
 struct VAO
 {
     GLuint handle;
@@ -105,13 +116,17 @@ struct Model
 {
     u32              meshIdx;
     std::vector<u32> materialIndices;
+    std::string      fileName;
 };
 
 struct Entity
 {
-    Model model;
-    mat4  transform;
-    MODE  mode;
+    std::string name;
+    
+    mat4 worldMatrix;
+    u32  modelIndex;
+    u32  localParamsOffset;
+    u32  localParamsSize;
 };
 
 struct Program

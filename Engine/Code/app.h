@@ -1,6 +1,8 @@
 #ifndef __APP_H__
 #define __APP_H__
 
+#include <map>
+
 #include "base_types.h"
 #include "math_types.h"
 #include "shader_types.h"
@@ -24,27 +26,32 @@ public:
     mat4 worldViewProjMatrix;
 
 public:                                                                 // OpenGL Vars -----------------------------
-    MODE mode;                                                          // Rendering mode.
+    MODE    mode;                                                       // Rendering mode.
 
-    u32 texQuadProgramIdx;                                              // Index of a given geometry program.
-    u32 texMeshProgramIdx;                                              // Index of a given mesh program.
+    u32     texQuadProgramIdx;                                          // Index of a given geometry program.
+    u32     texMeshProgramIdx;                                          // Index of a given mesh program.
     
-    u32 quadTexIdx;                                                     // Buffer index of the quad texture.
+    u32     quadTexIdx;                                                 // Buffer index of the quad texture.
     
-    u32 diceTexIdx;                                                     // Buffer index of the dice texture.
-    u32 whiteTexIdx;                                                    // Buffer index of the white texture.
-    u32 blackTexIdx;                                                    // Buffer index of the black texture.
-    u32 normalTexIdx;                                                   // Buffer index of the normal texture.
-    u32 magentaTexIdx;                                                  // Buffer index of the magenta texture.
+    u32     diceTexIdx;                                                 // Buffer index of the dice texture.
+    u32     whiteTexIdx;                                                // Buffer index of the white texture.
+    u32     blackTexIdx;                                                // Buffer index of the black texture.
+    u32     normalTexIdx;                                               // Buffer index of the normal texture.
+    u32     magentaTexIdx;                                              // Buffer index of the magenta texture.
 
-    GLuint embeddedVertices;                                            // Embedded geometry (in-editor simple meshes such 
-    GLuint embeddedElements;                                            // as a screen filling quad, a cube, a sphere...).
+    GLuint  embeddedVertices;                                           // Embedded geometry (in-editor simple meshes such 
+    GLuint  embeddedElements;                                           // as a screen filling quad, a cube, a sphere...).
 
-    GLuint programUniformTexture;                                       // Location of the texture uniform in the textured quad shader
+    GLuint  programUniformTexture;                                      // Location of the texture uniform in the textured quad shader
     
-    GLuint vaoQuad;                                                     // VAO object to link our screen filling quad with our textured quad shader
+    GLuint  vaoQuad;                                                    // VAO object to link our screen filling quad with our textured quad shader
+
+    Buffer  cbuffer;
+    GLint   maxUniformBufferSize;
+    GLint   uniformBlockAlignment;
 
 public:                                                                 // Containers ------------------------------
+    std::vector<Entity>     entities;                                   // Will store all active entities.
     std::vector<Texture>    textures;                                   // Will store all active textures.
     std::vector<Material>   materials;                                  // Will store all active materials.
     std::vector<Mesh>       meshes;                                     // Will store all active meshes.

@@ -43,6 +43,9 @@
     <Filter Include="Engine\Helpers\Camera">
       <UniqueIdentifier>{da5b48ae-1c5e-4a72-a19d-b61c4cf3886f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Engine\Helpers\BufferManager">
+      <UniqueIdentifier>{0ab5be21-ccb3-4a8c-96e9-275fd52431ec}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ThirdParty\imgui-docking\imgui.cpp">
@@ -101,6 +104,9 @@
     </ClCompile>
     <ClCompile Include="Code\transform.cpp">
       <Filter>Engine\Helpers\Transform</Filter>
+    </ClCompile>
+    <ClCompile Include="Code\buffer_manager.cpp">
+      <Filter>Engine\Helpers\BufferManager</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -181,6 +187,9 @@
     </ClInclude>
     <ClInclude Include="Code\transform.h">
       <Filter>Engine\Helpers\Transform</Filter>
+    </ClInclude>
+    <ClInclude Include="Code\buffer_manager.h">
+      <Filter>Engine\Helpers\BufferManager</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

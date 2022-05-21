@@ -5,10 +5,11 @@
 // graphics related GUI options, and so on.
 //
 
-#include <imgui.h>
+#include "imgui_includes.h"
 
 #include "globals.h"
 #include "app.h"
+#include "buffer_manager.h"
 #include "file_manager.h"
 #include "importer.h"
 #include "transform.h"
@@ -21,23 +22,28 @@ void Engine::Init(App* app)
 {
     app->enableDebugGroups = false;
     
+    app->mode = MODE::MESH;
+    
     Camera::InitCamera(app);
     Camera::InitWorldTransform(app);
     
     Shaders::LoadBaseTextures(app);
     Shaders::CreateDefaultMaterial(app);
-    Primitives::InitPrimitivesData(app);
+    Shaders::InitUniformBlockBuffer(app);
 
-    app->mode = MODE::MESH;
+    Primitives::InitPrimitivesData(app);
     
+    //Renderer::InitFrameBuffer(app);
+
     const char* texPath     = "dice.png";
     const char* meshPath    = "Patrick/Patrick.obj";
 
     switch (app->mode)
     {
-    case MODE::QUAD: { Renderer::InitQuad(app, texPath); }  break;
-    case MODE::MESH: { Renderer::InitMesh(app, meshPath); } break;
-    default:         { /* NOTHING FOR NOW */ };
+    case MODE::QUAD:     { Renderer::InitQuad(app, texPath); }  break;
+    case MODE::MESH:     { Renderer::InitMesh(app, meshPath); } break;
+    case MODE::ENTITIES: { Renderer::InitEntities(app); }       break;
+    default:             { /* NOTHING FOR NOW */ };
     }
 }
 
@@ -47,6 +53,45 @@ void Engine::Update(App* app)
     
     app->camera.SetViewMatrix(glm::translate(app->camera.GetPosition()));
     
+    // -- UNIFORM BUFFER?
+    /*GLuint bufferHandle;
+    glGenBuffers(1, &bufferHandle);
+    glBindBuffer(GL_UNIFORM_BUFFER, bufferHandle);
+    glBufferData(GL_UNIFORM_BUFFER, app->maxUniformBufferSize, NULL, GL_STREAM_DRAW);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+    
+    glBindBuffer(GL_UNIFORM_BUFFER, bufferHandle);
+    u8* bufferData = (u8*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
+    u32 bufferHead = 0;
+    
+    memcpy(bufferData + bufferHead, glm::value_ptr(app->worldMatrix), sizeof(glm::mat4));
+    bufferHead += sizeof(glm::mat4);
+
+    memcpy(bufferData + bufferHead, glm::value_ptr(app->worldViewProjMatrix), sizeof(glm::mat4));
+    bufferHead += sizeof(glm::mat4);
+
+    glUnmapBuffer(GL_UNIFORM_BUFFER);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);*/
+
+    glBindBuffer(GL_UNIFORM_BUFFER, app->cbuffer.handle);
+    u8* bufferData = (u8*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
+    u32 bufferHead = 0;
+    for (u32 i = 0; i < app->entities.size(); ++i)
+    {
+        bufferHead = BufferManager::AlignHead(bufferHead, app->uniformBlockAlignment);
+
+        app->entities[i].localParamsOffset = bufferHead;
+
+        memcpy(bufferData + bufferHead, glm::value_ptr(app->worldMatrix), sizeof(glm::mat4));
+        bufferHead += sizeof(glm::mat4);
+
+        memcpy(bufferData + bufferHead, glm::value_ptr(app->worldViewProjMatrix), sizeof(glm::mat4));
+        bufferHead += sizeof(glm::mat4);
+
+        app->entities[i].localParamsSize = bufferHead - app->entities[i].localParamsOffset;
+    }
+
+    // SHADERS HOT RELOADING
     for (u64 i = 0; i < app->programs.size(); ++i)
     {
         Program& program = app->programs[i];
@@ -60,9 +105,6 @@ void Engine::Update(App* app)
             program.lastWriteTimestamp  = currentTimestamp;
         }
     }
-
-    // You can handle app->input keyboard/mouse here
-
 }
 
 void Engine::Render(App* app)
@@ -77,9 +119,10 @@ void Engine::Render(App* app)
 
     switch (app->mode)
     {
-    case MODE::QUAD: { Renderer::RenderQuad(app); } break;
-    case MODE::MESH: { Renderer::RenderMesh(app); } break;
-    default:         { /*NOTHING AT THE MOMENT*/ };
+    case MODE::QUAD:     { Renderer::RenderQuad(app); }     break;
+    case MODE::MESH:     { Renderer::RenderMesh(app); }     break;
+    case MODE::ENTITIES: { Renderer::RenderEntities(app); } break;
+    default:             { /*NOTHING AT THE MOMENT*/ };
     }
 
     glPopMatrix();
@@ -108,6 +151,7 @@ void Engine::DrawGui(App* app)
     Gui::ExtensionsTab(app);
 }
 
+// SHADERS ---
 GLuint Engine::CreateProgramFromSource(String programSource, const char* shaderName)
 {
     GLchar  infoLogBuffer[1024] = {};
@@ -275,10 +319,7 @@ void Engine::Input::GetInput(App* app)
     // CAMERA
     vec3 position = app->camera.GetPosition();
     
-    if (app->input.keys[K_W] == BUTTON_PRESSED) 
-    { 
-        position.z += app->camera.moveSpeed * app->deltaTime; 
-    }
+    if (app->input.keys[K_W] == BUTTON_PRESSED) { position.z += app->camera.moveSpeed * app->deltaTime; }
     if (app->input.keys[K_A] == BUTTON_PRESSED) { position.x += app->camera.moveSpeed * app->deltaTime; }
     if (app->input.keys[K_S] == BUTTON_PRESSED) { position.z -= app->camera.moveSpeed * app->deltaTime; }
     if (app->input.keys[K_D] == BUTTON_PRESSED) { position.x -= app->camera.moveSpeed * app->deltaTime; }
@@ -322,6 +363,12 @@ void Engine::Shaders::CreateDefaultMaterial(App* app)
     material.smoothness = 1.0f;
     
     material.albedoTexIdx = app->whiteTexIdx;
+}
+
+void Engine::Shaders::InitUniformBlockBuffer(App* app)
+{
+    glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
+    glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &app->uniformBlockAlignment);
 }
 
 // RENDERER --------------------------------------------------------------------
@@ -416,6 +463,53 @@ void Engine::Renderer::InitMesh(App* app, const char* meshPath)
     }
 }
 
+void Engine::Renderer::InitEntities(App* app)
+{
+    // MODEL LOADING
+    u32 patrickModelIdx = Importer::LoadModel(app, "Patrick/Patrick.obj");
+    u32 planeIdx        = Primitives::GetPlaneIdx();
+    u32 cubeIdx         = Primitives::GetCubeIdx();
+    u32 sphereIdx       = Primitives::GetSphereIdx();
+
+    // ENTITIES
+    //                        NAME          WORLD MATRIX                                                                MODEL IDX          PRMS OFFSET PRMS SIZE
+    app->entities.push_back({ "Patrick_1",  Transform::PositionScale({ 5.0f, 0.0f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
+    app->entities.push_back({ "Patrick_2",  Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
+    app->entities.push_back({ "Patrick_3",  Transform::PositionScale({-5.0f, 0.0f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
+    //app->entities.push_back({ "Sphere_1",   Transform::PositionScale({ 0.0f, 2.0f,  0.0f }, Transform::defaultScale),   sphereIdx,          0,          0           });
+    //app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, Transform::defaultScale),   planeIdx,           0,          0           });
+
+    // SHADER
+    app->texMeshProgramIdx              = LoadProgram(app, "shaders.glsl", "TEXTURED_ENTITIES");
+    Program& texMeshProgram             = app->programs[app->texMeshProgramIdx];
+    app->texMeshProgramUniformTexture   = glGetUniformLocation(texMeshProgram.handle, "uTexture");                              // Is this necessary?
+
+    GLint   attributeCount = 0;
+    glGetProgramiv(texMeshProgram.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
+    for (GLint i = 0; i < attributeCount; ++i)
+    {
+        char    attributeName[128];
+        GLsizei attributeNameLength = 0;
+        GLint   attributeSize = 0;
+        GLint   attributeLocation = 0;
+        GLenum  attributeType;
+
+        glGetActiveAttrib(texMeshProgram.handle, i,
+            ARRAY_COUNT(attributeName),
+            &attributeNameLength,
+            &attributeSize,
+            &attributeType,
+            attributeName);
+
+        attributeLocation = glGetAttribLocation(texMeshProgram.handle, attributeName);
+        glVertexAttribPointer(attributeLocation, attributeSize, attributeType, GL_FALSE, sizeof(float) * 5, (void*)0);          // Is this necessary?
+
+        texMeshProgram.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
+    }
+
+    app->cbuffer = BufferManager::CreateConstantBuffer(app->maxUniformBufferSize);
+}
+
 void Engine::Renderer::RenderQuad(App* app)
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -480,33 +574,42 @@ void Engine::Renderer::RenderMesh(App* app)
     glUseProgram(0);
 }
 
+void Engine::Renderer::RenderEntities(App* app)
+{
 
+}
 
 // GUI -------------------------------------------------------------------------
 void Engine::Gui::GeneralTab(App* app)
 {
     ImGui::Begin("General");
 
-    ImGui::Text("FPS: %f", 1.0f / app->deltaTime);
+    ImGui::TextColored(cyan,    "State:");
+    ImGui::TextColored(yellow,  "FPS:");    ImGui::SameLine(); ImGui::Text(" %f", 1.0f / app->deltaTime);
     ImGui::Checkbox("Enable debug groups", &app->enableDebugGroups);
     
     ImGui::Separator();
     
-    CameraTab(app);
+    ImGui::TextColored(cyan,    "Hardware:");
+    ImGui::TextColored(yellow,  "Version:");     ImGui::SameLine(); ImGui::Text("  %s", glGetString(GL_VERSION));
+    ImGui::TextColored(yellow,  "Renderer:");    ImGui::SameLine(); ImGui::Text(" %s", glGetString(GL_RENDERER));
+    ImGui::TextColored(yellow,  "Vendor:");      ImGui::SameLine(); ImGui::Text("   %s", glGetString(GL_VENDOR));
+    ImGui::TextColored(yellow,  "GLSL Ver:");    ImGui::SameLine(); ImGui::Text(" %s", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+    ImGui::Separator();
+
+    ImGui::TextColored(cyan, "Camera:");
+
+    vec3 position = app->camera.GetPosition();
+    if (ImGui::DragFloat3("Position", (float*)&position, 0.1)) { app->camera.SetPosition(position); }
+    //if (ImGui::DragFloat3("Rotation", (float*)&rotation, 0.1)) { app->camera.SetRotation(rotation); }
 
     ImGui::End();
 }
 
 void Engine::Gui::ExtensionsTab(App* app)
 {
-    ImGui::Begin("OpenGL Info");
-
-    ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "Version:");     ImGui::SameLine(); ImGui::Text("  %s",  glGetString(GL_VERSION));
-    ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "Renderer:");    ImGui::SameLine(); ImGui::Text(" %s",   glGetString(GL_RENDERER));
-    ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "Vendor:");      ImGui::SameLine(); ImGui::Text("   %s", glGetString(GL_VENDOR));
-    ImGui::TextColored(ImVec4(1.0, 1.0, 0.0, 1.0), "GLSL Ver:");    ImGui::SameLine(); ImGui::Text(" %s",   glGetString(GL_SHADING_LANGUAGE_VERSION));
-
-    ImGui::Separator();
+    ImGui::Begin("OpenGL Extensions");
 
     if (ImGui::TreeNodeEx("Extensions", ImGuiTreeNodeFlags_None))
     {
@@ -514,24 +617,11 @@ void Engine::Gui::ExtensionsTab(App* app)
         glGetIntegerv(GL_NUM_EXTENSIONS, &num_extensions);
         for (GLint i = 0; i < num_extensions; ++i)
         {
-            ImGui::Text("Extension %i: %s", i, glGetStringi(GL_EXTENSIONS, GLuint(i)));
+            ImGui::TextColored(yellow, "Extension %i:", i); ImGui::SameLine(); ImGui::Text("%s", glGetStringi(GL_EXTENSIONS, GLuint(i)));
         }
 
         ImGui::TreePop();
     }
 
     ImGui::End();
-}
-
-void Engine::Gui::CameraTab(App* app)
-{
-    //ImGui::Begin("Camera");
-
-    vec3 position = app->camera.GetPosition();
-    if (ImGui::DragFloat("X", (float*)&position.x, 0.1)) { app->camera.SetPosition(position); }
-    if (ImGui::DragFloat("Y", (float*)&position.y, 0.1)) { app->camera.SetPosition(position); }
-    if (ImGui::DragFloat("Z", (float*)&position.z, 0.1)) { app->camera.SetPosition(position); }
-
-
-    //ImGui::End();
 }

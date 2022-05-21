@@ -34,7 +34,15 @@ u32 Importer::LoadTexture2D(App* app, const char* filepath)
 }
 
 u32 Importer::LoadModel(App* app, const char* filename)
-{
+{   
+    for (u32 i = 0; i < app->models.size(); ++i)                                        // Returning an already existing model if the model file was previously loaded.
+    {
+        if (app->models[i].fileName == filename)
+        {
+            return i;
+        }
+    }
+    
     const aiScene* scene = aiImportFile(filename,
         aiProcess_Triangulate |
         aiProcess_GenSmoothNormals |
@@ -57,6 +65,7 @@ u32 Importer::LoadModel(App* app, const char* filename)
 
     app->models.push_back(Model{});
     Model& model    = app->models.back();
+    model.fileName  = filename;
     model.meshIdx   = meshIdx;
     u32 modelIdx    = (u32)app->models.size() - 1u;
 
@@ -81,7 +90,7 @@ u32 Importer::LoadModel(App* app, const char* filename)
     for (u32 i = 0; i < mesh.submeshes.size(); ++i)
     {
         vertexBufferSize += mesh.submeshes[i].vertices.size() * sizeof(float);
-        indexBufferSize += mesh.submeshes[i].indices.size() * sizeof(u32);
+        indexBufferSize  += mesh.submeshes[i].indices.size() * sizeof(u32);
     }
 
     glGenBuffers(1, &mesh.vertexBufferHandle);

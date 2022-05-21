@@ -39,22 +39,24 @@ namespace Engine
 	{
 		void LoadBaseTextures			(App* app);
 		void CreateDefaultMaterial		(App* app);
+		void InitUniformBlockBuffer		(App* app);
 	}
 
 	namespace Renderer
 	{
 		void InitQuad					(App* app, const char* texPath);
 		void InitMesh					(App* app, const char* meshPath);
+		void InitEntities				(App* app);
 
 		void RenderQuad					(App* app);
 		void RenderMesh					(App* app);
+		void RenderEntities				(App* app);
 	}
 
 	namespace Gui
 	{
 		void GeneralTab					(App* app);
 		void ExtensionsTab				(App* app);
-		void CameraTab					(App* app);
 	}
 }
 
