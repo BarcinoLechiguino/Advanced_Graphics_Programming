@@ -30,6 +30,7 @@ public:                                                                 // OpenG
 
     u32     texQuadProgramIdx;                                          // Index of a given geometry program.
     u32     texMeshProgramIdx;                                          // Index of a given mesh program.
+    u32     texEntityProgramIdx;                                        // Index of a given entity program.
     
     u32     quadTexIdx;                                                 // Buffer index of the quad texture.
     
@@ -42,8 +43,10 @@ public:                                                                 // OpenG
     GLuint  embeddedVertices;                                           // Embedded geometry (in-editor simple meshes such 
     GLuint  embeddedElements;                                           // as a screen filling quad, a cube, a sphere...).
 
-    GLuint  programUniformTexture;                                      // Location of the texture uniform in the textured quad shader
-    
+    GLuint  texQuadProgramUniformTexture;                               // Location of the texture uniform in the textured quad shader
+    GLuint  texMeshProgramUniformTexture;
+    GLuint  texEntityProgramUniformTexture;
+
     GLuint  vaoQuad;                                                    // VAO object to link our screen filling quad with our textured quad shader
     
     Buffer  cbuffer;
@@ -69,7 +72,6 @@ public:                                                                 // Conta
     u32 defaultMaterialIdx;
     
     u32 modelIdx;
-    u32 texMeshProgramUniformTexture;
 
 public:                                                                 // Debug -----------------------------------
     bool enableDebugGroups;                                             // Enable/Disable debugging with an external tool.

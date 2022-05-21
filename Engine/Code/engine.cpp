@@ -431,9 +431,9 @@ void Engine::Renderer::InitQuad(App* app, const char* texPath)
     // PROGRAM
     app->texQuadProgramIdx      = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
     Program& texQuadProgram     = app->programs[app->texQuadProgramIdx];
-    app->programUniformTexture  = glGetUniformLocation(texQuadProgram.handle, "uTexture");
+    app->texQuadProgramUniformTexture  = glGetUniformLocation(texQuadProgram.handle, "uTexture");
 
-    if (UniformIsInvalid(app->programUniformTexture))
+    if (UniformIsInvalid(app->texQuadProgramUniformTexture))
     {
         ILOG("Program Uniform Texture was not valid!");
     }
@@ -496,12 +496,12 @@ void Engine::Renderer::InitEntities(App* app)
     app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
 
     // SHADER
-    app->texMeshProgramIdx              = LoadProgram(app, "shaders.glsl", "TEXTURED_ENTITIES");
-    Program& texMeshProgram             = app->programs[app->texMeshProgramIdx];
-    app->texMeshProgramUniformTexture   = glGetUniformLocation(texMeshProgram.handle, "uTexture");                              // Is this necessary?
+    app->texEntityProgramIdx            = LoadProgram(app, "shaders.glsl", "TEXTURED_ENTITIES");
+    Program& texEntityProgram           = app->programs[app->texEntityProgramIdx];
+    app->texEntityProgramUniformTexture = glGetUniformLocation(texEntityProgram.handle, "uTexture");
 
     GLint   attributeCount = 0;
-    glGetProgramiv(texMeshProgram.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
+    glGetProgramiv(texEntityProgram.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
     for (GLint i = 0; i < attributeCount; ++i)
     {
         char    attributeName[128];
@@ -510,17 +510,17 @@ void Engine::Renderer::InitEntities(App* app)
         GLint   attributeLocation = 0;
         GLenum  attributeType;
 
-        glGetActiveAttrib(texMeshProgram.handle, i,
+        glGetActiveAttrib(texEntityProgram.handle, i,
             ARRAY_COUNT(attributeName),
             &attributeNameLength,
             &attributeSize,
             &attributeType,
             attributeName);
 
-        attributeLocation = glGetAttribLocation(texMeshProgram.handle, attributeName);
+        attributeLocation = glGetAttribLocation(texEntityProgram.handle, attributeName);
         glVertexAttribPointer(attributeLocation, attributeSize, attributeType, GL_FALSE, sizeof(float) * 5, (void*)0);          // Is this necessary?
 
-        texMeshProgram.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
+        texEntityProgram.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
     }
 
     app->cbuffer = CreateConstantBuffer(app->maxUniformBufferSize);
@@ -540,7 +540,7 @@ void Engine::Renderer::RenderQuad(App* app)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    glUniform1i(app->programUniformTexture, 0);
+    glUniform1i(app->texQuadProgramUniformTexture, 0);
     glActiveTexture(GL_TEXTURE0);
     GLuint textureHandle = app->textures[app->quadTexIdx].handle;
     glBindTexture(GL_TEXTURE_2D, textureHandle);
@@ -557,42 +557,63 @@ void Engine::Renderer::RenderMesh(App* app)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
-    
-    
+        
     Program& texturedMeshProgram = app->programs[app->texMeshProgramIdx];
     glUseProgram(texturedMeshProgram.handle);
     
-    for (u32 i = 0; i < app->models.size(); ++i)
+    Model& model = app->models[app->modelIdx];
+    Mesh& mesh = app->meshes[model.meshIdx];
+
+    for (u32 i = 0; i < mesh.submeshes.size(); ++i)
     {
-        //Model& model = app->models[app->modelIdx];
-        Model& model = app->models[i];
-        Mesh& mesh   = app->meshes[model.meshIdx];
+        GLuint VAO = FindVAO(mesh, i, texturedMeshProgram);
+        glBindVertexArray(VAO);
 
-        for (u32 i = 0; i < mesh.submeshes.size(); ++i)
-        {
-            GLuint VAO = FindVAO(mesh, i, texturedMeshProgram);
-            glBindVertexArray(VAO);
+        u32 submeshMaterialIdx = model.materialIndices[i];
+        Material& submeshMaterial = app->materials[submeshMaterialIdx];
 
-            u32 submeshMaterialIdx = model.materialIndices[i];
-            Material& submeshMaterial = app->materials[submeshMaterialIdx];
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
+        glUniform1i(app->texMeshProgramUniformTexture, 0);
 
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
-            glUniform1i(app->texMeshProgramUniformTexture, 0);
-
-            Submesh& submesh = mesh.submeshes[i];
-            glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
-        }
-
-        glBindVertexArray(0);
+        Submesh& submesh = mesh.submeshes[i];
+        glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
     }
-    
+
+    glBindVertexArray(0);
     glUseProgram(0);
 }
 
 void Engine::Renderer::RenderEntities(App* app)
 {
+    glBindBufferRange(GL_UNIFORM_BUFFER, 0, app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
 
+    for (u32 i = 0; i < app->entities.size(); ++i)
+    {
+        u32 blockSize = sizeof(mat4) * 2;
+        glBindBufferRange(GL_UNIFORM_BUFFER, 1, app->cbuffer.handle, app->entities[i].localParamsOffset, blockSize);
+
+        Program& texEntityProgram = app->programs[app->texEntityProgramIdx];
+        glUseProgram(texEntityProgram.handle);
+
+        Model& model = app->models[0];
+        Mesh& mesh = app->meshes[model.meshIdx];
+        for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+        {
+            GLuint VAO = FindVAO(mesh, i, texEntityProgram);
+            glBindVertexArray(VAO);
+
+            u32 submeshMaterialIdx      = model.materialIndices[i];
+            Material& submeshMaterial   = app->materials[submeshMaterialIdx];
+
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
+            glUniform1i(app->texEntityProgramUniformTexture, 0);
+
+            Submesh& submesh = mesh.submeshes[i];
+            glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
+        }
+    }
 }
 
 // GUI -------------------------------------------------------------------------
