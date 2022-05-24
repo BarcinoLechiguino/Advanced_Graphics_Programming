@@ -28,6 +28,6 @@ mat4 Transform::PositionRotate(const vec3& pos, const float angleRad, const vec3
 mat4 Transform::PositionScale(const vec3& pos, const vec3& scaleFactor)
 {
 	mat4 transform	= translate(pos);
-	transform		= scale(scaleFactor);
+	transform		*= scale(scaleFactor);
 	return transform;
 }

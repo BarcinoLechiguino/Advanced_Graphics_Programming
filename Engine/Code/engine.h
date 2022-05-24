@@ -42,6 +42,11 @@ namespace Engine
 		void InitUniformBlockBuffer		(App* app);
 	}
 
+	namespace Lights
+	{
+		void AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direction, vec3 position);
+	}
+
 	namespace Renderer
 	{
 		void InitQuad					(App* app, const char* texPath);

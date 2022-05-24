@@ -87,6 +87,13 @@ struct Light
 #define LT_DIRECTIONAL	0
 #define LT_POINT		1
 
+layout(binding = 0, std140) uniform GlobalParams
+{
+	vec3			uCameraPosition;
+	unsigned int	uLightCount;
+	Light			uLight[16];
+};
+
 #if defined(VERTEX)	///////////////////////////////////////////////////
 
 layout(location = 0) in vec3 aPosition;
@@ -94,13 +101,6 @@ layout(location = 1) in vec3 aNormal;
 layout(location = 2) in vec2 aTexCoord;
 layout(location = 3) in vec3 aTangent;
 layout(location = 4) in vec3 aBitangent;
-
-layout(binding = 0, std140) uniform GlobalParams
-{
-	vec3			uCameraPosition;
-	unsigned int	uLightCount;
-	Light			uLight[16];
-};
 
 layout(binding = 1, std140) uniform LocalParams
 {
@@ -116,10 +116,10 @@ out vec3 vViewDir;		// In WorldSpace
 void main()
 {
 	vTexCoord	= aTexCoord;
-	vPosition	= vec3(uWorldMatrix * mat4(aPosition, 1.0));
-	vNormal		= vec3(uWorldMatrix * mat4(aNormal, 0.0));
+	vPosition	= vec3(uWorldMatrix * vec4(aPosition, 1.0));
+	vNormal		= vec3(uWorldMatrix * vec4(aNormal, 0.0));
 	vViewDir	= uCameraPosition - vPosition;
-	gl_Position = uWorldViewProjectionMatrix * vec4(aPosition, 1.0);
+	gl_Position = uWorldViewProjectionMatrix * vec4(aPosition.x, aPosition.y, aPosition.z, 1.0);
 }
 
 #elif defined(FRAGMENT)	///////////////////////////////////////////////
@@ -132,13 +132,6 @@ in vec3 vViewDir;
 uniform sampler2D uTexture;
 
 layout(location = 0) out vec4 oColor;
-
-layout(binding = 0, std140) uniform GlobalParams
-{
-	vec3		 uCameraPosition;
-	unsigned int uLightCount;
-	Lignt		 uLight[10];
-};
 
 void main()
 {
@@ -170,19 +163,56 @@ void main()
 		float dVal		= max(dot(normalize(vNormal), normDir), 0.0);
 		float sVal		= pow(max(dot(vViewDir, rfltDir), 0.0), 0.8);
 		
-		vec3 diffuse	= dVal * dirLight.color * texColor.xyz * 0.7;
-		vec3 ambient	= dirLight.color * texColor.xyz * 0.2;
-		vec3 specular	= sVal * dirLight.color * texColor.xyz * 0.1;
+		vec3 diffuse	= dVal * light.color * texColor.xyz * 0.7;
+		vec3 ambient	= light.color * texColor.xyz * 0.2;
+		vec3 specular	= sVal * light.color * texColor.xyz * 0.1;
 
 		outputColor += (specular + diffuse + ambient) * attenuation;
 	}
 	
-	oColor = vec4(outputColor, 1.0);
+	oColor = texColor; //vec4(outputColor, 1.0);
 }
 
 #endif	///////////////////////////////////////////////////////////////
 
 #endif
+
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+
+#ifdef FRAMEBUFFER
+
+#if defined(VERTEX) ///////////////////////////////////////////////////
+
+layout(location = 0) in vec3 aPosition;
+layout(location = 2) in vec2 aTexCoord;
+
+out vec2 vTexCoord;
+
+void main()
+{
+	vTexCoord	= aTexCoord;
+	gl_Position = vec4(aPosition, 1.0);
+}
+
+#elif defined(FRAGMENT) ///////////////////////////////////////////////
+
+in vec2 vTexCoord;
+uniform sampler2D uTexture;
+
+layout(location = 0) out vec4 oColor;
+
+void main()
+{
+	oColor = texture(uTexture, vTexCoord);
+}
+
+#endif ///////////////////////////////////////////////////////////////
+
+#endif
+
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
 // NOTE: You can write several shaders in the same file if you want as
 // long as you embrace them within an #ifdef block (as you can see above).

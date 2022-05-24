@@ -22,14 +22,13 @@ void Engine::Init(App* app)
 {
     app->enableDebugGroups = false;
     
-    app->mode = MODE::MESH;
+    app->mode = MODE::ENTITIES;
     
     Camera::InitCamera(app);
     Camera::InitWorldTransform(app);
     
     Shaders::LoadBaseTextures(app);
     Shaders::CreateDefaultMaterial(app);
-    Shaders::InitUniformBlockBuffer(app);
 
     Primitives::InitPrimitivesData(app);
     
@@ -48,17 +47,11 @@ void Engine::Init(App* app)
 }
 
 void Engine::Update(App* app)
-{
-    // -- UNIFORM BUFFER?
-    /*GLuint bufferHandle;
-    glGenBuffers(1, &bufferHandle);
-    glBindBuffer(GL_UNIFORM_BUFFER, bufferHandle);
-    glBufferData(GL_UNIFORM_BUFFER, app->maxUniformBufferSize, NULL, GL_STREAM_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);*/
-    
+{   
     Input::GetInput(app);
     
-    app->camera.SetViewMatrix(glm::translate(app->camera.GetPosition()));
+    //app->camera.SetViewMatrix(glm::translate(app->camera.GetPosition()));
+    app->camera.SetViewMatrix(glm::lookAt(app->camera.position, app->camera.target, Transform::upVector));
     
     //glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
 
@@ -83,7 +76,7 @@ void Engine::Update(App* app)
 
         app->globalParamsSize = app->cbuffer.head - app->globalParamsOffset;
 
-        for (int i = 0; i < app->activeLights; ++i)
+        for (int i = 0; i < app->entities.size(); ++i)
         {
             BufferManager::AlignHead(app->cbuffer, app->uniformBlockAlignment);
 
@@ -96,8 +89,6 @@ void Engine::Update(App* app)
             entity.localParamsSize = app->cbuffer.head - entity.localParamsOffset;
         }
 
-        //BufferManager::UnmapBuffer(app->cbuffer);
-        //BufferManager::UnbindBuffer(app->cbuffer);
         glUnmapBuffer(GL_UNIFORM_BUFFER);
         glBindBuffer(GL_UNIFORM_BUFFER, 0);
     }
@@ -125,8 +116,8 @@ void Engine::Render(App* app)
         glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 1, -1, "Shaded Model");
     }
     
-    glPushMatrix();
-    glMultMatrixf((GLfloat*)&Transform::PositionScale(app->camera.position, Transform::defaultScale)[0]);
+    //glPushMatrix();
+    //glMultMatrixf((GLfloat*)&Transform::PositionScale(app->camera.position, Transform::defaultScale)[0]);
 
     switch (app->mode)
     {
@@ -136,7 +127,7 @@ void Engine::Render(App* app)
     default:             { /*NOTHING AT THE MOMENT*/ };
     }
 
-    glPopMatrix();
+    //glPopMatrix();
 
     if (app->enableDebugGroups)
     {
@@ -382,6 +373,19 @@ void Engine::Shaders::InitUniformBlockBuffer(App* app)
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &app->uniformBlockAlignment);
 }
 
+// ENTITIES --------------------------------------------------------------------
+void Engine::Lights::AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direction, vec3 position)
+{
+    Light light     = {};
+    light.type      = type;
+    light.color     = color;
+    light.direction = direction;
+    light.position  = position;
+
+    app->lights.push_back(light);
+    ++app->activeLights;
+}
+
 // RENDERER --------------------------------------------------------------------
 void Engine::Renderer::InitQuad(App* app, const char* texPath)
 {
@@ -488,15 +492,17 @@ void Engine::Renderer::InitEntities(App* app)
     app->entities.push_back({ "Patrick_2",  Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
     app->entities.push_back({ "Patrick_3",  Transform::PositionScale({-5.0f, 0.0f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
     //app->entities.push_back({ "Sphere_1",   Transform::PositionScale({ 0.0f, 2.0f,  0.0f }, Transform::defaultScale),   sphereIdx,          0,          0           });
-    //app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, Transform::defaultScale),   planeIdx,           0,          0           });
+    app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, Transform::defaultScale),   planeIdx,           0,          0           });
 
     // LIGHTS
-    //                      LIGHT TYPE      COLOR                 DIRECTION                 POSITION 
-    app->lights.push_back({ LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f, -1.0f },  { 1.0f, 1.0f,  1.0f } });
-    app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
+    //                      LIGHT TYPE      COLOR                 DIRECTION                POSITION 
+    Lights::AddLight(app, LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f,  1.0f });
+    Lights::AddLight(app, LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f }, { 0.0f, 3.0f, -2.0f });
+    //app->lights.push_back({ LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f, -1.0f },  { 1.0f, 1.0f,  1.0f } });
+    //app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
 
     // SHADER
-    app->texEntityProgramIdx            = LoadProgram(app, "shaders.glsl", "TEXTURED_ENTITIES");
+    app->texEntityProgramIdx            = LoadProgram(app, "shaders.glsl", "TEXTURED_ENTITY");
     Program& texEntityProgram           = app->programs[app->texEntityProgramIdx];
     app->texEntityProgramUniformTexture = glGetUniformLocation(texEntityProgram.handle, "uTexture");
 
@@ -523,6 +529,7 @@ void Engine::Renderer::InitEntities(App* app)
         texEntityProgram.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
     }
 
+    Shaders::InitUniformBlockBuffer(app);
     app->cbuffer = CreateConstantBuffer(app->maxUniformBufferSize);
 }
 
@@ -586,6 +593,11 @@ void Engine::Renderer::RenderMesh(App* app)
 
 void Engine::Renderer::RenderEntities(App* app)
 {
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glViewport(0, 0, app->displaySize.x, app->displaySize.y);
+    
     glBindBufferRange(GL_UNIFORM_BUFFER, 0, app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
 
     for (u32 i = 0; i < app->entities.size(); ++i)
@@ -596,8 +608,8 @@ void Engine::Renderer::RenderEntities(App* app)
         Program& texEntityProgram = app->programs[app->texEntityProgramIdx];
         glUseProgram(texEntityProgram.handle);
 
-        Model& model = app->models[0];
-        Mesh& mesh = app->meshes[model.meshIdx];
+        Model& model = app->models[app->entities[i].modelIndex];
+        Mesh& mesh   = app->meshes[model.meshIdx];
         for (u32 i = 0; i < mesh.submeshes.size(); ++i)
         {
             GLuint VAO = FindVAO(mesh, i, texEntityProgram);
@@ -608,12 +620,15 @@ void Engine::Renderer::RenderEntities(App* app)
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
-            glUniform1i(app->texEntityProgramUniformTexture, 0);
+            glUniform1i(/*app->texEntityProgramUniformTexture*/0, 0);
 
             Submesh& submesh = mesh.submeshes[i];
             glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
         }
     }
+
+    glBindVertexArray(0);
+    glUseProgram(0);
 }
 
 // GUI -------------------------------------------------------------------------
