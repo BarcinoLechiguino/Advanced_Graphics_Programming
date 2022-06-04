@@ -170,6 +170,8 @@ void main()
 		outputColor += (specular + diffuse + ambient) * attenuation;
 	}
 	
+	//outputColor = vNormal;
+
 	oColor = /*texColor;*/ vec4(outputColor, 1.0);
 }
 

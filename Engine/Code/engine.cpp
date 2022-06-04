@@ -496,8 +496,8 @@ void Engine::Renderer::InitEntities(App* app)
 
     // LIGHTS
     //                      LIGHT TYPE      COLOR                 DIRECTION                POSITION 
-    Lights::AddLight(app, LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f,  1.0f });
-    Lights::AddLight(app, LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f }, { 0.0f, 3.0f, -2.0f });
+    Lights::AddLight(app, LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f,  1.0f });
+    Lights::AddLight(app, LT_POINT,       { 0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 3.0f, -2.0f });
     //app->lights.push_back({ LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f, -1.0f },  { 1.0f, 1.0f,  1.0f } });
     //app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
 
@@ -595,6 +595,8 @@ void Engine::Renderer::RenderEntities(App* app)
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glEnable(GL_DEPTH_TEST);
 
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
     
