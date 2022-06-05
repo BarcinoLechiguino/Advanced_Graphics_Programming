@@ -10,7 +10,16 @@
 #include "math_types.h"
 
 // RENDER MODE
-enum class MODE
+enum class RENDER_MODE
+{
+    ALBEDO,
+    NORMAL,
+    SHADED,
+    DEFAULT                     // ERROR CATCHING
+};
+
+// SHADER MODE
+enum class SHADER_MODE
 {
     QUAD,
     MESH,

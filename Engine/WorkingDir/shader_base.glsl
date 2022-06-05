@@ -33,6 +33,11 @@ void main()
 #endif
 
 ///////////////////////////////////////////////////////////////////////
+
+
+
+
+
 ///////////////////////////////////////////////////////////////////////
 
 #ifdef TEXTURED_MESH
@@ -72,6 +77,11 @@ void main()
 #endif
 
 ///////////////////////////////////////////////////////////////////////
+
+
+
+
+
 ///////////////////////////////////////////////////////////////////////
 
 #ifdef TEXTURED_ENTITY
@@ -163,9 +173,9 @@ void main()
 		float dVal		= max(dot(normalize(vNormal), normDir), 0.0);
 		float sVal		= pow(max(dot(vViewDir, rfltDir), 0.0), 0.8);
 		
-		vec3 diffuse	= dVal * light.color * texColor.xyz * 0.7;
-		vec3 ambient	= light.color * texColor.xyz * 0.2;
-		vec3 specular	= sVal * light.color * texColor.xyz * 0.1;
+		vec3 diffuse	= dVal * light.color * texColor.xyz * 0.65;					// 
+		vec3 ambient	= light.color * texColor.xyz * 0.15;						// 0.05 less on all to avoid overexposure.
+		vec3 specular	= sVal * light.color * texColor.xyz * 0.05;					// 
 
 		outputColor += (specular + diffuse + ambient) * attenuation;
 	}

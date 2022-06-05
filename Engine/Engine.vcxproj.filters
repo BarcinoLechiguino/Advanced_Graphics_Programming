@@ -193,7 +193,10 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="WorkingDir\shaders.glsl">
+    <None Include="WorkingDir\shader_base.glsl">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="WorkingDir\shader_final.glsl">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

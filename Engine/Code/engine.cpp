@@ -22,7 +22,8 @@ void Engine::Init(App* app)
 {
     app->enableDebugGroups = false;
     
-    app->mode = MODE::ENTITIES;
+    app->renderMode = RENDER_MODE::SHADED;
+    app->shaderMode = SHADER_MODE::ENTITIES;
     
     Camera::InitCamera(app);
     Camera::InitWorldTransform(app);
@@ -37,11 +38,11 @@ void Engine::Init(App* app)
     const char* texPath     = "dice.png";
     const char* meshPath    = "Patrick/Patrick.obj";
 
-    switch (app->mode)
+    switch (app->shaderMode)
     {
-    case MODE::QUAD:     { Renderer::InitQuad(app, texPath); }  break;
-    case MODE::MESH:     { Renderer::InitMesh(app, meshPath); } break;
-    case MODE::ENTITIES: { Renderer::InitEntities(app); }       break;
+    case SHADER_MODE::QUAD:     { Renderer::InitQuad(app, texPath); }  break;
+    case SHADER_MODE::MESH:     { Renderer::InitMesh(app, meshPath); } break;
+    case SHADER_MODE::ENTITIES: { Renderer::InitEntities(app); }       break;
     default:             { /* NOTHING FOR NOW */ };
     }
 }
@@ -55,12 +56,13 @@ void Engine::Update(App* app)
     
     //glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
 
-    if (app->mode == MODE::ENTITIES)
+    if (app->shaderMode == SHADER_MODE::ENTITIES)
     {
         BufferManager::MapBuffer(app->cbuffer, GL_WRITE_ONLY);
         app->globalParamsOffset = app->cbuffer.head;
 
         PushVec3(app->cbuffer, app->camera.position);
+        PushUInt(app->cbuffer, (u32)app->renderMode);
 
         PushUInt(app->cbuffer, app->activeLights);
         for (u32 i = 0; i < app->activeLights; ++i)
@@ -119,11 +121,11 @@ void Engine::Render(App* app)
     //glPushMatrix();
     //glMultMatrixf((GLfloat*)&Transform::PositionScale(app->camera.position, Transform::defaultScale)[0]);
 
-    switch (app->mode)
+    switch (app->shaderMode)
     {
-    case MODE::QUAD:     { Renderer::RenderQuad(app); }     break;
-    case MODE::MESH:     { Renderer::RenderMesh(app); }     break;
-    case MODE::ENTITIES: { Renderer::RenderEntities(app); } break;
+    case SHADER_MODE::QUAD:     { Renderer::RenderQuad(app); }     break;
+    case SHADER_MODE::MESH:     { Renderer::RenderMesh(app); }     break;
+    case SHADER_MODE::ENTITIES: { Renderer::RenderEntities(app); } break;
     default:             { /*NOTHING AT THE MOMENT*/ };
     }
 
@@ -325,8 +327,17 @@ void Engine::Input::GetInput(App* app)
     if (app->input.keys[K_A] == BUTTON_PRESSED) { position.x += app->camera.moveSpeed * app->deltaTime; }
     if (app->input.keys[K_S] == BUTTON_PRESSED) { position.z -= app->camera.moveSpeed * app->deltaTime; }
     if (app->input.keys[K_D] == BUTTON_PRESSED) { position.x -= app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_Q] == BUTTON_PRESSED) { position.y += app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_E] == BUTTON_PRESSED) { position.y -= app->camera.moveSpeed * app->deltaTime; }
 
     app->camera.SetPosition(position);
+
+    // RENDER MODE
+    if (app->input.keys[K_R] == BUTTON_PRESS) 
+    { 
+        u32 newMode = (u32)app->renderMode + 1;
+        app->renderMode = (newMode == (u32)RENDER_MODE::DEFAULT) ? (RENDER_MODE)0 : (RENDER_MODE)newMode;
+    }
 }
 
 // CAMERA ----------------------------------------------------------------------
@@ -433,7 +444,7 @@ void Engine::Renderer::InitQuad(App* app, const char* texPath)
     glBindVertexArray(0);
 
     // PROGRAM
-    app->texQuadProgramIdx      = LoadProgram(app, "shaders.glsl", "TEXTURED_GEOMETRY");
+    app->texQuadProgramIdx      = LoadProgram(app, "shader_base.glsl", "TEXTURED_GEOMETRY");
     Program& texQuadProgram     = app->programs[app->texQuadProgramIdx];
     app->texQuadProgramUniformTexture  = glGetUniformLocation(texQuadProgram.handle, "uTexture");
 
@@ -449,7 +460,7 @@ void Engine::Renderer::InitQuad(App* app, const char* texPath)
 void Engine::Renderer::InitMesh(App* app, const char* meshPath)
 {
     app->modelIdx                       = Importer::LoadModel(app, meshPath);
-    app->texMeshProgramIdx              = LoadProgram(app, "shaders.glsl", "TEXTURED_MESH");
+    app->texMeshProgramIdx              = LoadProgram(app, "shader_base.glsl", "TEXTURED_MESH");
     Program& texMeshProgram             = app->programs[app->texMeshProgramIdx];
     app->texMeshProgramUniformTexture   = glGetUniformLocation(texMeshProgram.handle, "uTexture");
 
@@ -488,11 +499,11 @@ void Engine::Renderer::InitEntities(App* app)
 
     // ENTITIES
     //                        NAME          WORLD MATRIX                                                                MODEL IDX          PRMS OFFSET PRMS SIZE
-    app->entities.push_back({ "Patrick_1",  Transform::PositionScale({ 5.0f, 0.0f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
-    app->entities.push_back({ "Patrick_2",  Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
-    app->entities.push_back({ "Patrick_3",  Transform::PositionScale({-5.0f, 0.0f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
+    app->entities.push_back({ "Patrick_1",  Transform::PositionScale({ 5.0f, 3.5f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
+    app->entities.push_back({ "Patrick_2",  Transform::PositionScale({ 0.0f, 3.5f,  0.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
+    app->entities.push_back({ "Patrick_3",  Transform::PositionScale({-5.0f, 3.5f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
     //app->entities.push_back({ "Sphere_1",   Transform::PositionScale({ 0.0f, 2.0f,  0.0f }, Transform::defaultScale),   sphereIdx,          0,          0           });
-    app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, Transform::defaultScale),   planeIdx,           0,          0           });
+    app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, { 25.0f, 25.0f, 25.0f }),      planeIdx,           0,          0 });
 
     // LIGHTS
     //                      LIGHT TYPE      COLOR                 DIRECTION                POSITION 
@@ -502,7 +513,7 @@ void Engine::Renderer::InitEntities(App* app)
     //app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
 
     // SHADER
-    app->texEntityProgramIdx            = LoadProgram(app, "shaders.glsl", "TEXTURED_ENTITY");
+    app->texEntityProgramIdx            = LoadProgram(app, "shader_final.glsl", "TEXTURED_ENTITY");
     Program& texEntityProgram           = app->programs[app->texEntityProgramIdx];
     app->texEntityProgramUniformTexture = glGetUniformLocation(texEntityProgram.handle, "uTexture");
 

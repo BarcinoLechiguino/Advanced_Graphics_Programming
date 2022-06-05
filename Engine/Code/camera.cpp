@@ -3,7 +3,7 @@
 #include "camera.h"
 
 Camera::Camera() :
-position		({ 0.0f, 0.0f, 20.0f }),
+position		({ 10.0f, 5.0f, 15.0f }),
 target			({ 0.0f, 0.0f, 0.0f }),
 moveSpeed		(100.0f),
 aspectRatio		(0.0f),
