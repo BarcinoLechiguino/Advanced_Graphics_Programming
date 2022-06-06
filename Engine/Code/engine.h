@@ -39,6 +39,8 @@ namespace Engine
 	{
 		void LoadBaseTextures			(App* app);
 		void CreateDefaultMaterial		(App* app);
+
+		void GetProgramAttributes		(App* app, GLuint programHandle);
 		void InitUniformBlockBuffer		(App* app);
 	}
 
@@ -49,6 +51,10 @@ namespace Engine
 
 	namespace Renderer
 	{
+		void InitFramebuffer			(App* app);
+		void GenerateFramebufferTexture	(GLuint& texHandle, ivec2 size, GLint type);
+		void CheckFramebufferStatus		();
+		
 		void InitQuad					(App* app, const char* texPath);
 		void InitMesh					(App* app, const char* meshPath);
 		void InitEntities				(App* app);

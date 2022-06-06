@@ -28,12 +28,13 @@ void Engine::Init(App* app)
     Camera::InitCamera(app);
     Camera::InitWorldTransform(app);
     
+    Renderer::InitFramebuffer(app);
+    
     Shaders::LoadBaseTextures(app);
     Shaders::CreateDefaultMaterial(app);
 
     Primitives::InitPrimitivesData(app);
     
-    //Renderer::InitFrameBuffer(app);
 
     const char* texPath     = "dice.png";
     const char* meshPath    = "Patrick/Patrick.obj";
@@ -43,7 +44,7 @@ void Engine::Init(App* app)
     case SHADER_MODE::QUAD:     { Renderer::InitQuad(app, texPath); }  break;
     case SHADER_MODE::MESH:     { Renderer::InitMesh(app, meshPath); } break;
     case SHADER_MODE::ENTITIES: { Renderer::InitEntities(app); }       break;
-    default:             { /* NOTHING FOR NOW */ };
+    default:                    { /* NOTHING FOR NOW */ };
     }
 }
 
@@ -126,7 +127,7 @@ void Engine::Render(App* app)
     case SHADER_MODE::QUAD:     { Renderer::RenderQuad(app); }     break;
     case SHADER_MODE::MESH:     { Renderer::RenderMesh(app); }     break;
     case SHADER_MODE::ENTITIES: { Renderer::RenderEntities(app); } break;
-    default:             { /*NOTHING AT THE MOMENT*/ };
+    default:                    { /*NOTHING AT THE MOMENT*/ };
     }
 
     //glPopMatrix();
@@ -323,12 +324,12 @@ void Engine::Input::GetInput(App* app)
     // CAMERA
     vec3 position = app->camera.GetPosition();
     
-    if (app->input.keys[K_W] == BUTTON_PRESSED) { position.z += app->camera.moveSpeed * app->deltaTime; }
-    if (app->input.keys[K_A] == BUTTON_PRESSED) { position.x += app->camera.moveSpeed * app->deltaTime; }
-    if (app->input.keys[K_S] == BUTTON_PRESSED) { position.z -= app->camera.moveSpeed * app->deltaTime; }
-    if (app->input.keys[K_D] == BUTTON_PRESSED) { position.x -= app->camera.moveSpeed * app->deltaTime; }
-    if (app->input.keys[K_Q] == BUTTON_PRESSED) { position.y += app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_W] == BUTTON_PRESSED) { position.z -= app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_A] == BUTTON_PRESSED) { position.x -= app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_S] == BUTTON_PRESSED) { position.z += app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_D] == BUTTON_PRESSED) { position.x += app->camera.moveSpeed * app->deltaTime; }
     if (app->input.keys[K_E] == BUTTON_PRESSED) { position.y -= app->camera.moveSpeed * app->deltaTime; }
+    if (app->input.keys[K_Q] == BUTTON_PRESSED) { position.y += app->camera.moveSpeed * app->deltaTime; }
 
     app->camera.SetPosition(position);
 
@@ -378,6 +379,35 @@ void Engine::Shaders::CreateDefaultMaterial(App* app)
     material.albedoTexIdx = app->whiteTexIdx;
 }
 
+void Engine::Shaders::GetProgramAttributes(App* app, GLuint programHandle)
+{
+    Program& texEntityProgram           = app->programs[programHandle];
+    app->texEntityProgramUniformTexture = glGetUniformLocation(texEntityProgram.handle, "uTexture");
+
+    GLint   attributeCount = 0;
+    glGetProgramiv(texEntityProgram.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
+    for (GLint i = 0; i < attributeCount; ++i)
+    {
+        char    attributeName[128];
+        GLsizei attributeNameLength = 0;
+        GLint   attributeSize = 0;
+        GLint   attributeLocation = 0;
+        GLenum  attributeType;
+
+        glGetActiveAttrib(texEntityProgram.handle, i,
+                            ARRAY_COUNT(attributeName),
+                            &attributeNameLength,
+                            &attributeSize,
+                            &attributeType,
+                            attributeName);
+
+        attributeLocation = glGetAttribLocation(texEntityProgram.handle, attributeName);
+        glVertexAttribPointer(attributeLocation, attributeSize, attributeType, GL_FALSE, sizeof(float) * 5, (void*)0);          // Is this necessary?
+
+        texEntityProgram.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
+    }
+}
+
 void Engine::Shaders::InitUniformBlockBuffer(App* app)
 {
     glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE, &app->maxUniformBufferSize);
@@ -398,6 +428,78 @@ void Engine::Lights::AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direct
 }
 
 // RENDERER --------------------------------------------------------------------
+void Engine::Renderer::InitFramebuffer(App* app)
+{
+    // GENERATING TEXTURES
+    GenerateFramebufferTexture(app->albedoTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->normalTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->depthTexAttachment,     app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->positionTexAttachment,  app->displaySize,   GL_FLOAT);
+    GenerateFramebufferTexture(app->shadedTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
+
+    // DEPTH BUFFER ATTACHMENT
+    glGenTextures(1, &app->depthBufferHandle);
+    glBindTexture(GL_TEXTURE_2D, app->depthBufferHandle);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, app->displaySize.x, app->displaySize.y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // ATTACHING ELEMENTS TO FRAMEBUFFER
+    glGenFramebuffers(1, &app->framebufferHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
+
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,  app->albedoTexAttachment,   0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,  app->normalTexAttachment,   0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2,  app->depthTexAttachment,    0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3,  app->positionTexAttachment, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4,  app->shadedTexAttachment,   0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,   app->depthBufferHandle,     0);
+
+    CheckFramebufferStatus();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Engine::Renderer::GenerateFramebufferTexture(GLuint& texHandle, ivec2 size, GLint type)
+{
+    glGenTextures(1, &texHandle);
+    glBindTexture(GL_TEXTURE_2D, texHandle);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, size.x, size.y, 0, GL_RGBA, type, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void Engine::Renderer::CheckFramebufferStatus()
+{
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE)
+    {
+        switch (status)
+        {
+        case GL_FRAMEBUFFER_UNDEFINED:                      { ELOG("GL_FRAMEBUFFER_UNDEFINED"); }                       break;
+        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:          { ELOG("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT"); }           break;
+        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:  { ELOG("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT"); }   break;
+        case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:         { ELOG("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER"); }          break;
+        case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:         { ELOG("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER"); }          break;
+        case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:         { ELOG("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE"); }          break;
+        case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:       { ELOG("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS"); }        break;
+        default:                                            { ELOG("[UNKNOWN FRAMEBUFFER ERROR]"); }
+        }
+    }
+}
+
 void Engine::Renderer::InitQuad(App* app, const char* texPath)
 {
     const Vertex vertices[] = {// Positions              Normals              UVs             Tangents             BiTangents
@@ -506,39 +608,15 @@ void Engine::Renderer::InitEntities(App* app)
     app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, { 25.0f, 25.0f, 25.0f }),      planeIdx,           0,          0 });
 
     // LIGHTS
-    //                      LIGHT TYPE      COLOR                 DIRECTION                POSITION 
+    //                    LIGHT TYPE        COLOR                 DIRECTION             POSITION 
     Lights::AddLight(app, LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f,  1.0f });
     Lights::AddLight(app, LT_POINT,       { 0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 3.0f, -2.0f });
     //app->lights.push_back({ LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f, -1.0f },  { 1.0f, 1.0f,  1.0f } });
     //app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
 
     // SHADER
-    app->texEntityProgramIdx            = LoadProgram(app, "shader_final.glsl", "TEXTURED_ENTITY");
-    Program& texEntityProgram           = app->programs[app->texEntityProgramIdx];
-    app->texEntityProgramUniformTexture = glGetUniformLocation(texEntityProgram.handle, "uTexture");
-
-    GLint   attributeCount = 0;
-    glGetProgramiv(texEntityProgram.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
-    for (GLint i = 0; i < attributeCount; ++i)
-    {
-        char    attributeName[128];
-        GLsizei attributeNameLength = 0;
-        GLint   attributeSize = 0;
-        GLint   attributeLocation = 0;
-        GLenum  attributeType;
-
-        glGetActiveAttrib(texEntityProgram.handle, i,
-            ARRAY_COUNT(attributeName),
-            &attributeNameLength,
-            &attributeSize,
-            &attributeType,
-            attributeName);
-
-        attributeLocation = glGetAttribLocation(texEntityProgram.handle, attributeName);
-        glVertexAttribPointer(attributeLocation, attributeSize, attributeType, GL_FALSE, sizeof(float) * 5, (void*)0);          // Is this necessary?
-
-        texEntityProgram.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
-    }
+    app->texEntityProgramIdx = LoadProgram(app, "shader_final.glsl", "TEXTURED_ENTITY");
+    Shaders::GetProgramAttributes(app, app->texEntityProgramIdx);
 
     Shaders::InitUniformBlockBuffer(app);
     app->cbuffer = CreateConstantBuffer(app->maxUniformBufferSize);
