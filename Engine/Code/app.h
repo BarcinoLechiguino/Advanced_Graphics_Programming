@@ -27,12 +27,16 @@ public:
     mat4    worldViewProjMatrix;
 
 public:                                                                 // OpenGL Vars -----------------------------
+    bool        deferredRendering;
+    
     RENDER_MODE renderMode;
-    SHADER_MODE shaderMode;                                                   // Shader mode.
+    SHADER_MODE shaderMode;                                             // Shader mode.
 
     u32         texQuadProgramIdx;                                      // Index of a given geometry program.
     u32         texMeshProgramIdx;                                      // Index of a given mesh program.
-    u32         texEntityProgramIdx;                                    // Index of a given entity program.
+    u32         forwardRenderingProgramIdx;                             // Index of a given entity program.
+    u32         deferredGeometryProgramIdx;
+    u32         deferredLightingProgramIdx;
     
     u32         quadTexIdx;                                             // Buffer index of the quad texture.
     
@@ -41,6 +45,7 @@ public:                                                                 // OpenG
     u32         blackTexIdx;                                            // Buffer index of the black texture.
     u32         normalTexIdx;                                           // Buffer index of the normal texture.
     u32         magentaTexIdx;                                          // Buffer index of the magenta texture.
+    u32         reliefTexIdx;
 
     GLuint      embeddedVertices;                                       // Embedded geometry (in-editor simple meshes such 
     GLuint      embeddedElements;                                       // as a screen filling quad, a cube, a sphere...).

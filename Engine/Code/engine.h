@@ -40,7 +40,7 @@ namespace Engine
 		void LoadBaseTextures			(App* app);
 		void CreateDefaultMaterial		(App* app);
 
-		void GetProgramAttributes		(App* app, GLuint programHandle);
+		void GetProgramAttributes		(App* app, GLuint programHandle, GLuint& programUniformTexture);
 		void InitUniformBlockBuffer		(App* app);
 	}
 
@@ -60,12 +60,17 @@ namespace Engine
 		void InitQuad					(App* app, const char* texPath);
 		void InitMesh					(App* app, const char* meshPath);
 		void InitEntities				(App* app);
+		
+		void InitLightingQuad			(App* app);
 		void InitFramebufferQuad		(App* app);
 
 		void RenderQuad					(App* app);
 		void RenderMesh					(App* app);
 		void RenderEntities				(App* app);
-		void RenderFramebufferQuad		(App* app);
+		
+		void GeometryPass				(App* app);
+		void LightingPass				(App* app);
+		void FramebufferPass			(App* app);
 
 		void BindFramebufferForRender	(App* app);
 		void RefreshFramebuffer			(App* app);

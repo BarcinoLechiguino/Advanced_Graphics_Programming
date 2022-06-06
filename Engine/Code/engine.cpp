@@ -20,9 +20,9 @@
 
 void Engine::Init(App* app)
 {
-    app->enableDebugGroups = false;
-    
+    app->enableDebugGroups  = false;
     app->refreshFramebuffer = true;
+    app->deferredRendering  = false;
 
     app->renderMode = RENDER_MODE::SHADED;
     app->shaderMode = SHADER_MODE::ENTITIES;
@@ -385,13 +385,13 @@ void Engine::Shaders::CreateDefaultMaterial(App* app)
     material.albedoTexIdx = app->whiteTexIdx;
 }
 
-void Engine::Shaders::GetProgramAttributes(App* app, GLuint programHandle)
+void Engine::Shaders::GetProgramAttributes(App* app, GLuint programHandle, GLuint& programUniformTexture)
 {
-    Program& texEntityProgram           = app->programs[programHandle];
-    app->texEntityProgramUniformTexture = glGetUniformLocation(texEntityProgram.handle, "uTexture");
+    Program& program        = app->programs[programHandle];
+    programUniformTexture   = glGetUniformLocation(program.handle, "uTexture");
 
     GLint   attributeCount = 0;
-    glGetProgramiv(texEntityProgram.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
+    glGetProgramiv(program.handle, GL_ACTIVE_ATTRIBUTES, &attributeCount);
     for (GLint i = 0; i < attributeCount; ++i)
     {
         char    attributeName[128];
@@ -400,17 +400,17 @@ void Engine::Shaders::GetProgramAttributes(App* app, GLuint programHandle)
         GLint   attributeLocation = 0;
         GLenum  attributeType;
 
-        glGetActiveAttrib(texEntityProgram.handle, i,
+        glGetActiveAttrib(program.handle, i,
                             ARRAY_COUNT(attributeName),
                             &attributeNameLength,
                             &attributeSize,
                             &attributeType,
                             attributeName);
 
-        attributeLocation = glGetAttribLocation(texEntityProgram.handle, attributeName);
+        attributeLocation = glGetAttribLocation(program.handle, attributeName);
         glVertexAttribPointer(attributeLocation, attributeSize, attributeType, GL_FALSE, sizeof(float) * 5, (void*)0);          // Is this necessary?
 
-        texEntityProgram.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
+        program.VIL.attributes.push_back({ (u8)attributeLocation, (u8)attributeSize });
     }
 }
 
@@ -630,22 +630,28 @@ void Engine::Renderer::InitMesh(App* app, const char* meshPath)
 
 void Engine::Renderer::InitEntities(App* app)
 {
-    // INIT FRAMEBUFFER QUAD
+    // INIT QUADS
+    InitLightingQuad(app);
     InitFramebufferQuad(app);
     
     // MODEL LOADING
     u32 patrickModelIdx = Importer::LoadModel(app, "Patrick/Patrick.obj");
+    u32 reliefCubeIdx   = Importer::LoadModel(app, "Cube/Cube.fbx");
     u32 planeIdx        = Primitives::GetPlaneIdx();
     u32 cubeIdx         = Primitives::GetCubeIdx();
     u32 sphereIdx       = Primitives::GetSphereIdx();
 
+    // TEXTURE LOADING
+    app->reliefTexIdx   = Importer::LoadTexture2D(app, "Cube/toy_box_disp.png");
+    
     // ENTITIES
-    //                        NAME          WORLD MATRIX                                                                MODEL IDX          PRMS OFFSET PRMS SIZE
-    app->entities.push_back({ "Patrick_1",  Transform::PositionScale({ 5.0f, 3.5f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
-    app->entities.push_back({ "Patrick_2",  Transform::PositionScale({ 0.0f, 3.5f,  0.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
-    app->entities.push_back({ "Patrick_3",  Transform::PositionScale({-5.0f, 3.5f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0           });
+    //                        NAME          WORLD MATRIX                                                                MODEL IDX           PRMS OFFSET PRMS SIZE
+    app->entities.push_back({ "Patrick_1",  Transform::PositionScale({ 5.0f, 3.5f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0       });
+    app->entities.push_back({ "Patrick_2",  Transform::PositionScale({ 0.0f, 3.5f,  0.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0       });
+    app->entities.push_back({ "Patrick_3",  Transform::PositionScale({-5.0f, 3.5f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0       });
+    app->entities.push_back({ "ReliefCube", Transform::PositionScale({ 0.0f, 5.0f,  0.0f }, Transform::defaultScale),   reliefCubeIdx,      0,          0       });
+    app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, { 25.0f, 25.0f, 25.0f }),   planeIdx,           0,          0       });
     //app->entities.push_back({ "Sphere_1",   Transform::PositionScale({ 0.0f, 2.0f,  0.0f }, Transform::defaultScale),   sphereIdx,          0,          0           });
-    app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, { 25.0f, 25.0f, 25.0f }),      planeIdx,           0,          0 });
 
     // LIGHTS
     //                    LIGHT TYPE        COLOR                 DIRECTION             POSITION 
@@ -655,11 +661,61 @@ void Engine::Renderer::InitEntities(App* app)
     //app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
 
     // SHADER
-    app->texEntityProgramIdx = LoadProgram(app, "shader_final.glsl", "TEXTURED_ENTITY");
-    Shaders::GetProgramAttributes(app, app->texEntityProgramIdx);
+    app->forwardRenderingProgramIdx = LoadProgram(app, "shader_final.glsl", "FORWARD_RENDERING");
+    Shaders::GetProgramAttributes(app, app->forwardRenderingProgramIdx, app->texEntityProgramUniformTexture);
+
+    app->deferredGeometryProgramIdx = LoadProgram(app, "shader_final.glsl", "GEOMETRY_PASS");
+    app->deferredLightingProgramIdx = LoadProgram(app, "shader_final.glsl", "LIGHTING_PASS");
 
     Shaders::InitUniformBlockBuffer(app);
     app->cbuffer = CreateConstantBuffer(app->maxUniformBufferSize);
+}
+
+void Engine::Renderer::InitLightingQuad(App* app)
+{
+    const Vertex vertices[] = {// Positions              Normals              UVs             Tangents             BiTangents
+                                { vec3(-1.0, -1.0, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 0
+                                { vec3( 1.0, -1.0, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 1
+                                { vec3( 1.0,  1.0, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 1.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 2
+                                { vec3(-1.0,  1.0, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 1.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) }           // 3
+                              };
+
+
+    const u32 indices[]     = {
+                                0, 1, 2,
+                                0, 2, 3
+                              };
+
+    // VERTEX BUFFER
+    glGenBuffers(1, &app->embeddedVertices);
+    glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // INDEX BUFFER
+    glGenBuffers(1, &app->embeddedElements);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    // VAO
+    glGenVertexArrays(1, &app->vaoQuad);
+    glBindVertexArray(app->vaoQuad);
+
+    glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);                                                       // --------------------------------------
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);                                  // Positions
+    glEnableVertexAttribArray(0);                                                                               // 
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 3));                // Normals
+    glEnableVertexAttribArray(1);                                                                               // 
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 6));                // UVs
+    glEnableVertexAttribArray(2);                                                                               // 
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 8));                // Tangents
+    glEnableVertexAttribArray(3);                                                                               // 
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 11));               // Bitangents
+    glEnableVertexAttribArray(4);                                                                               // 
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);                                               // --------------------------------------
+
+    glBindVertexArray(0);
 }
 
 void Engine::Renderer::InitFramebufferQuad(App* app)
@@ -784,7 +840,24 @@ void Engine::Renderer::RenderEntities(App* app)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
     
-    Program& renderProgram = (app->shaderMode == SHADER_MODE::ENTITIES) ? app->programs[app->texEntityProgramIdx] : app->programs[app->texEntityProgramIdx];
+    GeometryPass(app);
+
+    if (app->deferredRendering)
+    {
+        LightingPass(app);
+    }
+
+    glBindVertexArray(0);
+    glUseProgram(0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    FramebufferPass(app);
+}
+
+void Engine::Renderer::GeometryPass(App* app)
+{
+    Program& renderProgram = (app->deferredRendering) ? app->programs[app->deferredGeometryProgramIdx] : app->programs[app->forwardRenderingProgramIdx];
     glUseProgram(renderProgram.handle);
 
     glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
@@ -807,22 +880,52 @@ void Engine::Renderer::RenderEntities(App* app)
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
+            //glUniform1i(glGetUniformLocation(renderProgram.handle, "noTexture"), 0);
             glUniform1i(glGetUniformLocation(renderProgram.handle, "uTexture"), 0);
+
+            // NORMAL MAP
+
+            // RELIEF MAP
 
             Submesh& submesh = mesh.submeshes[i];
             glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
         }
     }
-
-    glBindVertexArray(0);
-    glUseProgram(0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    RenderFramebufferQuad(app);
 }
 
-void Engine::Renderer::RenderFramebufferQuad(App* app)
+void Engine::Renderer::LightingPass(App* app)
+{
+    Program& deferredLightingProgram = app->programs[app->deferredLightingProgramIdx];
+    glUseProgram(deferredLightingProgram.handle);
+
+    glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oNormals"),   0);
+    glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oAlbedo"),    1);
+    glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oDepth"),     2);
+    glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oPosition"),  3);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, app->normalTexAttachment);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, app->albedoTexAttachment);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, app->depthTexAttachment);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, app->positionTexAttachment);
+
+    GLuint drawBuffers[] = { GL_COLOR_ATTACHMENT0 };
+    glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
+
+    glDepthMask(false);
+    glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
+    
+    glBindVertexArray(app->vaoQuad);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(0);
+
+    glDepthMask(true);
+}
+
+void Engine::Renderer::FramebufferPass(App* app)                                          // THIS-HERE
 {
     Program& framebufferQuadProgram = app->programs[app->framebufferQuadProgramIdx];
     glUseProgram(framebufferQuadProgram.handle);
@@ -831,7 +934,7 @@ void Engine::Renderer::RenderFramebufferQuad(App* app)
     glUniform1i(app->framebufferQuadProgramUniformTex, 0);
     glActiveTexture(GL_TEXTURE0);
     
-    switch (app->shaderMode)
+    switch (app->shaderMode)                                                                    // RENDER MODE
     {
     case SHADER_MODE::ENTITIES: { glBindTexture(GL_TEXTURE_2D, app->shadedTexAttachment); } break;
     case SHADER_MODE::QUAD:     { glBindTexture(GL_TEXTURE_2D, app->shadedTexAttachment); } break;
@@ -843,7 +946,7 @@ void Engine::Renderer::RenderFramebufferQuad(App* app)
     glUseProgram(0);
 }
 
-void Engine::Renderer::BindFramebufferForRender(App* app)
+void Engine::Renderer::BindFramebufferForRender(App* app)                       // THIS-HERE
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

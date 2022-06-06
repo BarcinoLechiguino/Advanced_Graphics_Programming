@@ -10,7 +10,7 @@
 #include "math_types.h"
 
 // RENDER MODE
-enum class RENDER_MODE
+enum class RENDER_MODE          // FORWARD, DEFERRED, ALBEDO, NORMAL, DEPTH, POSITION
 {
     ALBEDO,
     NORMAL,
