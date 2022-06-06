@@ -74,6 +74,8 @@ namespace Engine
 
 		void BindFramebufferForRender	(App* app);
 		void RefreshFramebuffer			(App* app);
+
+		bool InDeferredMode				(App* app);
 	}
 
 	namespace Gui

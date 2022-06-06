@@ -14,14 +14,16 @@ struct Light
 #define LT_DIRECTIONAL	0
 #define LT_POINT		1
 
-#define RM_ALBEDO		0
-#define RM_NORMAL		1
-#define RM_SHADED		2
+#define RL_SHADED		0
+#define RL_ALBEDO		1
+#define RL_NORMAL		2
+#define RL_DEPTH		3
+#define RL_POSITION		4
 
 layout(binding = 0, std140) uniform GlobalParams
 {
 	vec3			uCameraPosition;
-	unsigned int	uRenderMode;
+	unsigned int	uRenderLayer;
 	unsigned int	uLightCount;
 	Light			uLight[16];
 };
@@ -109,12 +111,14 @@ void main()
 	vec4 texColor		= texture(uTexture, vTexCoord);
 	vec3 outputColor	= vec3(0.0, 0.0, 0.0);
 
-	switch (uRenderMode)
+	switch (uRenderLayer)
 	{
-		case RM_ALBEDO:	{ outputColor = texColor.xyz; }				break;
-		case RM_NORMAL:	{ outputColor = vNormal;}					break;
-		case RM_SHADED:	{ outputColor = ShadedRender(texColor); }	break;
-		default:		{ outputColor = vec3(0.0, 0.0, 0.0); }		break;
+		case RL_SHADED:		{ outputColor = ShadedRender(texColor); }	break;
+		case RL_ALBEDO:		{ outputColor = texColor.xyz; }				break;
+		case RL_NORMAL:		{ outputColor = vNormal; }					break;
+		case RL_DEPTH:		{ outputColor = vNormal; }					break;
+		case RL_POSITION:	{ outputColor = vPosition; }				break;
+		default:			{ outputColor = vec3(0.0, 0.0, 0.0); }		break;
 	}
 
 	oColor = vec4(outputColor, 1.0);
@@ -142,7 +146,7 @@ layout(binding = 0, std140) uniform GlobalParams
 	vec3			uCameraPosition;
 	//float			uCameraNearPlane;
 	//float			uCameraFarPlane;
-	unsigned int	uRenderMode;
+	unsigned int	uRenderLayer;
 	unsigned int	uLightCount;
 	Light			uLight[16];
 };
@@ -270,7 +274,7 @@ layout(binding = 0, std140) uniform GlobalParams
 	vec3			uCameraPosition;
 	//float			uCameraNearPlane;
 	//float			uCameraFarPlane;
-	unsigned int	uRenderMode;
+	unsigned int	uRenderLayer;
 	unsigned int	uLightCount;
 	Light			uLight[16];
 };

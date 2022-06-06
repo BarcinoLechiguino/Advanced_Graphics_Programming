@@ -22,10 +22,10 @@ void Engine::Init(App* app)
 {
     app->enableDebugGroups  = false;
     app->refreshFramebuffer = true;
-    app->deferredRendering  = false;
 
-    app->renderMode = RENDER_MODE::SHADED;
-    app->shaderMode = SHADER_MODE::ENTITIES;
+    app->renderMode  = RENDER_MODE::FORWARD;
+    app->renderLayer = RENDER_LAYER::SHADED;
+    app->shaderMode  = SHADER_MODE::ENTITIES;
 
     Camera::InitCamera(app);
     Camera::InitWorldTransform(app);
@@ -69,7 +69,7 @@ void Engine::Update(App* app)
         app->globalParamsOffset = app->cbuffer.head;
 
         PushVec3(app->cbuffer, app->camera.position);
-        PushUInt(app->cbuffer, (u32)app->renderMode);
+        PushUInt(app->cbuffer, (u32)app->renderLayer);
 
         PushUInt(app->cbuffer, app->activeLights);
         for (u32 i = 0; i < app->activeLights; ++i)
@@ -340,10 +340,16 @@ void Engine::Input::GetInput(App* app)
     app->camera.SetPosition(position);
 
     // RENDER MODE
-    if (app->input.keys[K_R] == BUTTON_PRESS) 
+    if (app->input.keys[K_M] == BUTTON_PRESS) 
     { 
-        u32 newMode = (u32)app->renderMode + 1;
-        app->renderMode = (newMode == (u32)RENDER_MODE::DEFAULT) ? (RENDER_MODE)0 : (RENDER_MODE)newMode;
+        app->renderMode = (app->renderMode == RENDER_MODE::FORWARD) ? RENDER_MODE::DEFERRED : RENDER_MODE::FORWARD;
+    }
+
+    // RENDER LAYER
+    if (app->input.keys[K_L] == BUTTON_PRESS)
+    {
+        u32 newMode = (u32)app->renderLayer + 1;
+        app->renderLayer = (newMode == (u32)RENDER_LAYER::DEFAULT) ? (RENDER_LAYER)0 : (RENDER_LAYER)newMode;
     }
 }
 
@@ -842,7 +848,7 @@ void Engine::Renderer::RenderEntities(App* app)
     
     GeometryPass(app);
 
-    if (app->deferredRendering)
+    if (InDeferredMode(app))
     {
         LightingPass(app);
     }
@@ -857,7 +863,7 @@ void Engine::Renderer::RenderEntities(App* app)
 
 void Engine::Renderer::GeometryPass(App* app)
 {
-    Program& renderProgram = (app->deferredRendering) ? app->programs[app->deferredGeometryProgramIdx] : app->programs[app->forwardRenderingProgramIdx];
+    Program& renderProgram = (InDeferredMode(app)) ? app->programs[app->deferredGeometryProgramIdx] : app->programs[app->forwardRenderingProgramIdx];
     glUseProgram(renderProgram.handle);
 
     glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
@@ -933,11 +939,14 @@ void Engine::Renderer::FramebufferPass(App* app)                                
 
     glUniform1i(app->framebufferQuadProgramUniformTex, 0);
     glActiveTexture(GL_TEXTURE0);
-    
-    switch (app->shaderMode)                                                                    // RENDER MODE
+
+    switch (app->renderLayer)
     {
-    case SHADER_MODE::ENTITIES: { glBindTexture(GL_TEXTURE_2D, app->shadedTexAttachment); } break;
-    case SHADER_MODE::QUAD:     { glBindTexture(GL_TEXTURE_2D, app->shadedTexAttachment); } break;
+    case RENDER_LAYER::SHADED:   { glBindTexture(GL_TEXTURE_2D, app->shadedTexAttachment); }     break;
+    case RENDER_LAYER::ALBEDO:   { glBindTexture(GL_TEXTURE_2D, app->albedoTexAttachment); }     break;
+    case RENDER_LAYER::NORMAL:   { glBindTexture(GL_TEXTURE_2D, app->normalTexAttachment); }     break;
+    case RENDER_LAYER::DEPTH:    { glBindTexture(GL_TEXTURE_2D, app->depthTexAttachment); }      break;
+    case RENDER_LAYER::POSITION: { glBindTexture(GL_TEXTURE_2D, app->positionTexAttachment); }   break;
     }
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -970,6 +979,11 @@ void Engine::Renderer::RefreshFramebuffer(App* app)
 {
     FreeFramebuffer(app);
     InitFramebuffer(app);
+}
+
+bool Engine::Renderer::InDeferredMode(App* app)
+{
+    return (app->renderMode != RENDER_MODE::FORWARD);
 }
 
 // GUI -------------------------------------------------------------------------

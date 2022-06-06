@@ -12,9 +12,17 @@
 // RENDER MODE
 enum class RENDER_MODE          // FORWARD, DEFERRED, ALBEDO, NORMAL, DEPTH, POSITION
 {
+    FORWARD,
+    DEFERRED
+};
+
+enum class RENDER_LAYER
+{
+    SHADED,
     ALBEDO,
     NORMAL,
-    SHADED,
+    DEPTH,
+    POSITION,
     DEFAULT                     // ERROR CATCHING
 };
 
