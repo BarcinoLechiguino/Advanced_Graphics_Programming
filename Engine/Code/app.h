@@ -18,12 +18,13 @@ public:
     Input input;                                                        // Input
 
 public:
-    ivec2 displaySize;                                                  // Window (?)
+    ivec2   displaySize;                                                  // Window (?)
+    bool    refreshFramebuffer;
 
-    Camera camera;
+    Camera  camera;
 
-    mat4 worldMatrix;
-    mat4 worldViewProjMatrix;
+    mat4    worldMatrix;
+    mat4    worldViewProjMatrix;
 
 public:                                                                 // OpenGL Vars -----------------------------
     RENDER_MODE renderMode;
@@ -57,6 +58,7 @@ public:                                                                 // OpenG
     u32         globalParamsOffset;
     u32         globalParamsSize;
 
+public:
     GLuint      framebufferHandle;
     GLuint      depthBufferHandle;
     GLuint      albedoTexAttachment;
@@ -64,6 +66,10 @@ public:                                                                 // OpenG
     GLuint      depthTexAttachment;
     GLuint      positionTexAttachment;
     GLuint      shadedTexAttachment;
+
+    GLuint      vaoFramebufferQuad;
+    GLuint      framebufferQuadProgramIdx;
+    GLuint      framebufferQuadProgramUniformTex;
 
 public:                                                                 // Containers ------------------------------
     std::vector<Entity>     entities;                                   // Will store all active entities.

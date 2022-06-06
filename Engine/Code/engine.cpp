@@ -22,9 +22,11 @@ void Engine::Init(App* app)
 {
     app->enableDebugGroups = false;
     
+    app->refreshFramebuffer = true;
+
     app->renderMode = RENDER_MODE::SHADED;
     app->shaderMode = SHADER_MODE::ENTITIES;
-    
+
     Camera::InitCamera(app);
     Camera::InitWorldTransform(app);
     
@@ -52,10 +54,14 @@ void Engine::Update(App* app)
 {   
     Input::GetInput(app);
     
+    if (app->refreshFramebuffer)
+    {
+        Renderer::RefreshFramebuffer(app);
+        app->refreshFramebuffer = false;
+    }
+
     //app->camera.SetViewMatrix(glm::translate(app->camera.GetPosition()));
     app->camera.SetViewMatrix(glm::lookAt(app->camera.position, app->camera.target, Transform::upVector));
-    
-    //glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
 
     if (app->shaderMode == SHADER_MODE::ENTITIES)
     {
@@ -79,7 +85,7 @@ void Engine::Update(App* app)
 
         app->globalParamsSize = app->cbuffer.head - app->globalParamsOffset;
 
-        for (int i = 0; i < app->entities.size(); ++i)
+        for (u32 i = 0; i < app->entities.size(); ++i)
         {
             BufferManager::AlignHead(app->cbuffer, app->uniformBlockAlignment);
 
@@ -431,11 +437,11 @@ void Engine::Lights::AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direct
 void Engine::Renderer::InitFramebuffer(App* app)
 {
     // GENERATING TEXTURES
-    GenerateFramebufferTexture(app->albedoTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->shadedTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
     GenerateFramebufferTexture(app->normalTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->albedoTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
     GenerateFramebufferTexture(app->depthTexAttachment,     app->displaySize,   GL_UNSIGNED_BYTE);
     GenerateFramebufferTexture(app->positionTexAttachment,  app->displaySize,   GL_FLOAT);
-    GenerateFramebufferTexture(app->shadedTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
 
     // DEPTH BUFFER ATTACHMENT
     glGenTextures(1, &app->depthBufferHandle);
@@ -454,16 +460,47 @@ void Engine::Renderer::InitFramebuffer(App* app)
     glGenFramebuffers(1, &app->framebufferHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
 
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,  app->albedoTexAttachment,   0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,  app->shadedTexAttachment,   0);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,  app->normalTexAttachment,   0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2,  app->depthTexAttachment,    0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3,  app->positionTexAttachment, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4,  app->shadedTexAttachment,   0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2,  app->albedoTexAttachment,   0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3,  app->depthTexAttachment,    0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4,  app->positionTexAttachment, 0);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,   app->depthBufferHandle,     0);
 
     CheckFramebufferStatus();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Engine::Renderer::ClearFramebuffer(App* app)
+{
+    GLuint drawBuffers[] = {
+        GL_COLOR_ATTACHMENT0,
+        GL_COLOR_ATTACHMENT1
+    };
+
+    glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
+
+    glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void Engine::Renderer::FreeFramebuffer(App* app)
+{   
+    GLuint textures[] = {
+       app->shadedTexAttachment,
+       app->normalTexAttachment,
+       app->albedoTexAttachment,
+       app->depthTexAttachment,
+       app->positionTexAttachment,
+       app->depthBufferHandle
+    };
+    
+    glDeleteTextures(ARRAY_COUNT(textures), textures);
+    glDeleteFramebuffers(1, &app->framebufferHandle);
 }
 
 void Engine::Renderer::GenerateFramebufferTexture(GLuint& texHandle, ivec2 size, GLint type)
@@ -593,6 +630,9 @@ void Engine::Renderer::InitMesh(App* app, const char* meshPath)
 
 void Engine::Renderer::InitEntities(App* app)
 {
+    // INIT FRAMEBUFFER QUAD
+    InitFramebufferQuad(app);
+    
     // MODEL LOADING
     u32 patrickModelIdx = Importer::LoadModel(app, "Patrick/Patrick.obj");
     u32 planeIdx        = Primitives::GetPlaneIdx();
@@ -620,6 +660,62 @@ void Engine::Renderer::InitEntities(App* app)
 
     Shaders::InitUniformBlockBuffer(app);
     app->cbuffer = CreateConstantBuffer(app->maxUniformBufferSize);
+}
+
+void Engine::Renderer::InitFramebufferQuad(App* app)
+{
+    const Vertex vertices[] = {// Positions              Normals              UVs             Tangents             BiTangents
+                                { vec3(-1.0, -1.0, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 0
+                                { vec3( 1.0, -1.0, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 0.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 1
+                                { vec3( 1.0,  1.0, 0.0), vec3(0.0, 0.0, 1.0), vec2(1.0, 1.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) },          // 2
+                                { vec3(-1.0,  1.0, 0.0), vec3(0.0, 0.0, 1.0), vec2(0.0, 1.0), vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.0) }           // 3
+                              };
+
+    const u32 indices[]     = {
+                                0, 1, 2,
+                                0, 2, 3
+                              };
+
+    // VERTEX BUFFER
+    glGenBuffers(1, &app->embeddedVertices);
+    glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    // INDEX BUFFER
+    glGenBuffers(1, &app->embeddedElements);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+    // VAO
+    glGenVertexArrays(1, &app->vaoFramebufferQuad);
+    glBindVertexArray(app->vaoFramebufferQuad);
+
+    glBindBuffer(GL_ARRAY_BUFFER, app->embeddedVertices);                                                       // --------------------------------------
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)0);                                  // Positions
+    glEnableVertexAttribArray(0);                                                                               // 
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 3));                // Normals
+    glEnableVertexAttribArray(1);                                                                               // 
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 6));                // UVs
+    glEnableVertexAttribArray(2);                                                                               // 
+    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 8));                // Tangents
+    glEnableVertexAttribArray(3);                                                                               // 
+    glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)(sizeof(float) * 11));               // Bitangents
+    glEnableVertexAttribArray(4);                                                                               // 
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, app->embeddedElements);                                               // --------------------------------------
+
+    glBindVertexArray(0);
+
+    // PROGRAM
+    app->framebufferQuadProgramIdx          = LoadProgram(app, "shader_final.glsl", "FRAMEBUFFER");
+    Program& framebufferQuadProgram         = app->programs[app->framebufferQuadProgramIdx];
+    app->framebufferQuadProgramUniformTex   = glGetUniformLocation(framebufferQuadProgram.handle, "uTexture");
+
+    if (UniformIsInvalid(app->framebufferQuadProgramUniformTex))
+    {
+        ILOG("Program Uniform Texture was not valid!");
+    }
 }
 
 void Engine::Renderer::RenderQuad(App* app)
@@ -682,28 +778,28 @@ void Engine::Renderer::RenderMesh(App* app)
 
 void Engine::Renderer::RenderEntities(App* app)
 {
+    BindFramebufferForRender(app);
+
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    glEnable(GL_DEPTH_TEST);
-
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
     
-    glBindBufferRange(GL_UNIFORM_BUFFER, 0, app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
+    Program& renderProgram = (app->shaderMode == SHADER_MODE::ENTITIES) ? app->programs[app->texEntityProgramIdx] : app->programs[app->texEntityProgramIdx];
+    glUseProgram(renderProgram.handle);
+
+    glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
 
     for (u32 i = 0; i < app->entities.size(); ++i)
     {
         u32 blockSize = sizeof(mat4) * 2;
-        glBindBufferRange(GL_UNIFORM_BUFFER, 1, app->cbuffer.handle, app->entities[i].localParamsOffset, blockSize);
-
-        Program& texEntityProgram = app->programs[app->texEntityProgramIdx];
-        glUseProgram(texEntityProgram.handle);
+        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->cbuffer.handle, app->entities[i].localParamsOffset, blockSize);
+        glEnable(GL_DEPTH_TEST);
 
         Model& model = app->models[app->entities[i].modelIndex];
         Mesh& mesh   = app->meshes[model.meshIdx];
         for (u32 i = 0; i < mesh.submeshes.size(); ++i)
         {
-            GLuint VAO = FindVAO(mesh, i, texEntityProgram);
+            GLuint VAO = FindVAO(mesh, i, renderProgram);
             glBindVertexArray(VAO);
 
             u32 submeshMaterialIdx      = model.materialIndices[i];
@@ -711,7 +807,7 @@ void Engine::Renderer::RenderEntities(App* app)
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
-            glUniform1i(/*app->texEntityProgramUniformTexture*/0, 0);
+            glUniform1i(glGetUniformLocation(renderProgram.handle, "uTexture"), 0);
 
             Submesh& submesh = mesh.submeshes[i];
             glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
@@ -720,6 +816,57 @@ void Engine::Renderer::RenderEntities(App* app)
 
     glBindVertexArray(0);
     glUseProgram(0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    RenderFramebufferQuad(app);
+}
+
+void Engine::Renderer::RenderFramebufferQuad(App* app)
+{
+    Program& framebufferQuadProgram = app->programs[app->framebufferQuadProgramIdx];
+    glUseProgram(framebufferQuadProgram.handle);
+    glBindVertexArray(app->vaoFramebufferQuad);
+
+    glUniform1i(app->framebufferQuadProgramUniformTex, 0);
+    glActiveTexture(GL_TEXTURE0);
+    
+    switch (app->shaderMode)
+    {
+    case SHADER_MODE::ENTITIES: { glBindTexture(GL_TEXTURE_2D, app->shadedTexAttachment); } break;
+    case SHADER_MODE::QUAD:     { glBindTexture(GL_TEXTURE_2D, app->shadedTexAttachment); } break;
+    }
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void Engine::Renderer::BindFramebufferForRender(App* app)
+{
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    ClearFramebuffer(app);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
+
+    GLuint drawBuffers[] = {
+        GL_COLOR_ATTACHMENT0,
+        GL_COLOR_ATTACHMENT1,
+        GL_COLOR_ATTACHMENT2,
+        GL_COLOR_ATTACHMENT3,
+        GL_COLOR_ATTACHMENT4
+    };
+
+    glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
+}
+
+void Engine::Renderer::RefreshFramebuffer(App* app)
+{
+    FreeFramebuffer(app);
+    InitFramebuffer(app);
 }
 
 // GUI -------------------------------------------------------------------------

@@ -52,16 +52,23 @@ namespace Engine
 	namespace Renderer
 	{
 		void InitFramebuffer			(App* app);
+		void ClearFramebuffer			(App* app);
+		void FreeFramebuffer			(App* app);
 		void GenerateFramebufferTexture	(GLuint& texHandle, ivec2 size, GLint type);
 		void CheckFramebufferStatus		();
 		
 		void InitQuad					(App* app, const char* texPath);
 		void InitMesh					(App* app, const char* meshPath);
 		void InitEntities				(App* app);
+		void InitFramebufferQuad		(App* app);
 
 		void RenderQuad					(App* app);
 		void RenderMesh					(App* app);
 		void RenderEntities				(App* app);
+		void RenderFramebufferQuad		(App* app);
+
+		void BindFramebufferForRender	(App* app);
+		void RefreshFramebuffer			(App* app);
 	}
 
 	namespace Gui
