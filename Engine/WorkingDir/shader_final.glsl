@@ -67,6 +67,9 @@ uniform sampler2D uTexture;
 
 layout(location = 0) out vec4 oColor;
 
+float near	= 0.1;
+float far	= 100.0;
+
 vec3 ShadedRender(in vec4 texColor)
 {
 	vec3 outputColor = vec3(0.0, 0.0, 0.0);
@@ -106,6 +109,14 @@ vec3 ShadedRender(in vec4 texColor)
 	return outputColor;
 }
 
+float LinearizeDepth(in float depth)
+{	
+	float z			= (depth * 2.0) - 1.0;
+	float linDepth	= (2.0 * near * far) / (far + near - z * (far - near));
+
+	return linDepth;
+}
+
 void main()
 {
 	vec4 texColor		= texture(uTexture, vTexCoord);
@@ -113,12 +124,12 @@ void main()
 
 	switch (uRenderLayer)
 	{
-		case RL_SHADED:		{ outputColor = ShadedRender(texColor); }	break;
-		case RL_ALBEDO:		{ outputColor = texColor.xyz; }				break;
-		case RL_NORMAL:		{ outputColor = vNormal; }					break;
-		case RL_DEPTH:		{ outputColor = vNormal; }					break;
-		case RL_POSITION:	{ outputColor = vPosition; }				break;
-		default:			{ outputColor = vec3(0.0, 0.0, 0.0); }		break;
+		case RL_SHADED:		{ outputColor = ShadedRender(texColor); }						break;
+		case RL_ALBEDO:		{ outputColor = texColor.xyz; }									break;
+		case RL_NORMAL:		{ outputColor = vNormal; }										break;
+		case RL_DEPTH:		{ outputColor = vec3(LinearizeDepth(gl_FragCoord.z) / far); }	break;
+		case RL_POSITION:	{ outputColor = vPosition; }									break;
+		default:			{ outputColor = vec3(0.0, 0.0, 0.0); }							break;
 	}
 
 	oColor = vec4(outputColor, 1.0);
@@ -155,7 +166,7 @@ layout(binding = 0, std140) uniform GlobalParams
 
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec3 aNormal;
-layout(location = 2) in vec3 aTexCoord;
+layout(location = 2) in vec2 aTexCoord;
 layout(location = 3) in vec3 aTangent;
 layout(location = 4) in vec3 aBitangent;
 
@@ -220,14 +231,14 @@ float LinearizeDepth(in float depth)
 
 vec2 ReliefMapping(in vec2 texCoords, in mat3 TBN)
 {
-	
+	return vec2(0.0);
 }
 
 void main()
 {
 	vec3 T = normalize(vTangent);
 	vec3 B = normalize(vBitangent);
-	vec3 N = noramlize(vNormal);
+	vec3 N = normalize(vNormal);
 
 	mat3 TBN		= mat3(T, B, N);
 	vec2 texCoords	= vTexCoord;
@@ -244,7 +255,7 @@ void main()
 	//}
 
 	oNormals	= vec4(N, 1.0);
-	oAlbedo		= (noTexture == 0) ? vec4(0.5) : texture(uTexture, texCoords);
+	oAlbedo		= /*(noTexture == 0) ? vec4(0.5) :*/ texture(uTexture, texCoords);
 	oDepth		= vec4(vec3(LinearizeDepth(gl_FragCoord.z) / far), 1.0);
 	oPosition	= vec4(vPosition, 1.0);
 }
@@ -341,7 +352,7 @@ void main()
 	vec3 vAlbedo	= texture(oAlbedo, vTexCoord).rgb;
 	vec3 vViewDir	= normalize((vViewPos - vPosition));			// uCameraPosition straight up?
 
-	vec3  ambientColor	= albedo.xyz * 0.4;							// Ambient
+	vec3  ambientColor	= vAlbedo.xyz * 0.4;						// Ambient
 	vec3  specular		= vec3(1.0);								// Material Parameter
 	float shininess		= 120.0;									// Material Parameter
 
@@ -355,10 +366,10 @@ void main()
 		float attenuation	= 1.0;
 		
 		vec3 L				= GetLightDir(light, vPosition, attenuation);
-		vec3 R				= reflect(-normDir, N);
+		vec3 R				= reflect(-L, N);
 
 		float diffIntensity = max(dot(N, L), 0.0);
-		vec3 diffuseColor	= (albedo.xyz * light.color * diffIntensity) * attenuation;
+		vec3 diffuseColor	= (vAlbedo.xyz * light.color * diffIntensity) * attenuation;
 
 		float specIntensity = pow(max(dot(vViewDir, R), 0.0), shininess);
 		vec3 specularColor	= (attenuation * specular * light.color * specIntensity) * attenuation;
@@ -368,7 +379,7 @@ void main()
 	}
 
 	finalDiffuse  /= uLightCount;
-	finalSpecular /= uLightcount;
+	finalSpecular /= uLightCount;
 
 	oColor = vec4(ambientColor + finalDiffuse + finalSpecular, 1.0);
 }

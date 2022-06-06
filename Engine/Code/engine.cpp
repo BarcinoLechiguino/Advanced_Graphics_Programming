@@ -846,6 +846,8 @@ void Engine::Renderer::RenderEntities(App* app)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
     
+    glEnable(GL_DEPTH_TEST);
+
     GeometryPass(app);
 
     if (InDeferredMode(app))
@@ -872,7 +874,6 @@ void Engine::Renderer::GeometryPass(App* app)
     {
         u32 blockSize = sizeof(mat4) * 2;
         glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->cbuffer.handle, app->entities[i].localParamsOffset, blockSize);
-        glEnable(GL_DEPTH_TEST);
 
         Model& model = app->models[app->entities[i].modelIndex];
         Mesh& mesh   = app->meshes[model.meshIdx];
@@ -884,14 +885,16 @@ void Engine::Renderer::GeometryPass(App* app)
             u32 submeshMaterialIdx      = model.materialIndices[i];
             Material& submeshMaterial   = app->materials[submeshMaterialIdx];
 
+            glUniform1i(glGetUniformLocation(renderProgram.handle, "uTexture"), 0);
+
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
-            //glUniform1i(glGetUniformLocation(renderProgram.handle, "noTexture"), 0);
-            glUniform1i(glGetUniformLocation(renderProgram.handle, "uTexture"), 0);
 
             // NORMAL MAP
 
+
             // RELIEF MAP
+
 
             Submesh& submesh = mesh.submeshes[i];
             glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
