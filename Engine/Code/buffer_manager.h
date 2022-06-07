@@ -28,7 +28,9 @@ namespace BufferManager
 #define CreateStaticIndexBuffer(size)	BufferManager::CreateBuffer(size, GL_ELEMENT_ARRAY_BUFFER, GL_STATIC_DRAW);
 
 #define PushData(buffer, data, size)	BufferManager::PushAlignedData(buffer, data, size, 1);
+#define PushFloat(buffer, value)		{ f32 v = value; BufferManager::PushAlignedData(buffer, &v, sizeof(v), 4); }
 #define PushUInt(buffer, value)			{ u32 v = value; BufferManager::PushAlignedData(buffer, &v, sizeof(v), 4); }
+#define PushVec2(buffer, value)			BufferManager::PushAlignedData(buffer, value_ptr(value), sizeof(value), sizeof(vec4))
 #define PushVec3(buffer, value)			BufferManager::PushAlignedData(buffer, value_ptr(value), sizeof(value), sizeof(vec4))
 #define PushVec4(buffer, value)			BufferManager::PushAlignedData(buffer, value_ptr(value), sizeof(value), sizeof(vec4))
 #define PushMat3(buffer, value)			BufferManager::PushAlignedData(buffer, value_ptr(value), sizeof(value), sizeof(vec4))

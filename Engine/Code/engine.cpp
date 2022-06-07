@@ -23,6 +23,10 @@ void Engine::Init(App* app)
     app->enableDebugGroups  = false;
     app->refreshFramebuffer = true;
 
+    app->useNormalMap   = false;
+    app->useBumpMap     = false;
+    app->bumpiness      = 1.0f;
+
     app->renderMode  = RENDER_MODE::DEFERRED;
     app->renderLayer = RENDER_LAYER::SHADED;
     app->shaderMode  = SHADER_MODE::ENTITIES;
@@ -60,62 +64,14 @@ void Engine::Update(App* app)
         app->refreshFramebuffer = false;
     }
 
-    //app->camera.SetViewMatrix(glm::translate(app->camera.GetPosition()));
     app->camera.SetViewMatrix(glm::lookAt(app->camera.position, app->camera.target, Transform::upVector));
 
     if (app->shaderMode == SHADER_MODE::ENTITIES)
     {
-        BufferManager::MapBuffer(app->cbuffer, GL_WRITE_ONLY);
-        app->globalParamsOffset = app->cbuffer.head;
-
-        PushVec3(app->cbuffer, app->camera.position);
-        PushUInt(app->cbuffer, (u32)app->renderLayer);
-
-        PushUInt(app->cbuffer, app->activeLights);
-        for (u32 i = 0; i < app->activeLights; ++i)
-        {
-            BufferManager::AlignHead(app->cbuffer, sizeof(vec4));
-
-            Light& light = app->lights[i];
-            PushUInt(app->cbuffer, light.type);
-            PushVec3(app->cbuffer, light.color);
-            PushVec3(app->cbuffer, light.direction);
-            PushVec3(app->cbuffer, light.position);
-        }
-
-        app->globalParamsSize = app->cbuffer.head - app->globalParamsOffset;
-
-        for (u32 i = 0; i < app->entities.size(); ++i)
-        {
-            BufferManager::AlignHead(app->cbuffer, app->uniformBlockAlignment);
-
-            Entity& entity = app->entities[i];
-            entity.localParamsOffset = app->cbuffer.head;
-
-            PushMat4(app->cbuffer, entity.worldMatrix);
-            PushMat4(app->cbuffer, app->camera.GetProjMatrix() * app->camera.GetViewMatrix() * entity.worldMatrix);
-
-            entity.localParamsSize = app->cbuffer.head - entity.localParamsOffset;
-        }
-
-        glUnmapBuffer(GL_UNIFORM_BUFFER);
-        glBindBuffer(GL_UNIFORM_BUFFER, 0);
+        (!Renderer::InDeferredMode(app)) ? Shaders::ForwardUniformBlockBuffer(app) : Shaders::DeferredUniformBlockBuffer(app);
     }
 
-    // SHADERS HOT RELOADING
-    for (u64 i = 0; i < app->programs.size(); ++i)
-    {
-        Program& program = app->programs[i];
-        u64 currentTimestamp = FileManager::GetFileLastWriteTimestamp(program.filepath.c_str());
-        if (currentTimestamp < program.lastWriteTimestamp)
-        {
-            glDeleteProgram(program.handle);
-            String programSource        = FileManager::ReadTextFile(program.filepath.c_str());
-            const char* programName     = program.programName.c_str();
-            program.handle              = CreateProgramFromSource(programSource, programName);
-            program.lastWriteTimestamp  = currentTimestamp;
-        }
-    }
+    Shaders::HotReloading(app);
 }
 
 void Engine::Render(App* app)
@@ -342,7 +298,7 @@ void Engine::Input::GetInput(App* app)
     // RENDER MODE
     if (app->input.keys[K_M] == BUTTON_PRESS) 
     { 
-        app->renderMode = (app->renderMode == RENDER_MODE::FORWARD) ? RENDER_MODE::DEFERRED : RENDER_MODE::FORWARD;
+        app->renderMode = (Renderer::InDeferredMode(app)) ? RENDER_MODE::FORWARD : RENDER_MODE::DEFERRED;
     }
 
     // RENDER LAYER
@@ -351,6 +307,10 @@ void Engine::Input::GetInput(App* app)
         u32 newMode = (u32)app->renderLayer + 1;
         app->renderLayer = (newMode == (u32)RENDER_LAYER::DEFAULT) ? (RENDER_LAYER)0 : (RENDER_LAYER)newMode;
     }
+
+    // MAPS
+    if (app->input.keys[K_N] == BUTTON_PRESS) { app->useNormalMap = !app->useNormalMap; }
+    if (app->input.keys[K_B] == BUTTON_PRESS) { app->useBumpMap = !app->useBumpMap; }
 }
 
 // CAMERA ----------------------------------------------------------------------
@@ -426,14 +386,116 @@ void Engine::Shaders::InitUniformBlockBuffer(App* app)
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT, &app->uniformBlockAlignment);
 }
 
-// ENTITIES --------------------------------------------------------------------
-void Engine::Lights::AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direction, vec3 position)
+void Engine::Shaders::ForwardUniformBlockBuffer(App* app)
 {
-    Light light     = {};
-    light.type      = type;
-    light.color     = color;
-    light.direction = direction;
-    light.position  = position;
+    BufferManager::MapBuffer(app->cbuffer, GL_WRITE_ONLY);
+    app->globalParamsOffset = app->cbuffer.head;
+
+    PushVec3(app->cbuffer, app->camera.position);
+    PushUInt(app->cbuffer, (u32)app->renderLayer);
+    PushUInt(app->cbuffer, (u32)app->activeLights);
+    for (u32 i = 0; i < app->activeLights; ++i)
+    {
+        BufferManager::AlignHead(app->cbuffer, sizeof(vec4));
+
+        Light& light = app->lights[i];
+        PushUInt(app->cbuffer, light.type);
+        PushVec3(app->cbuffer, light.color);
+        PushVec3(app->cbuffer, light.direction);
+        PushVec3(app->cbuffer, light.position);
+    }
+
+    app->globalParamsSize = app->cbuffer.head - app->globalParamsOffset;
+
+    for (u32 i = 0; i < app->entities.size(); ++i)
+    {
+        BufferManager::AlignHead(app->cbuffer, app->uniformBlockAlignment);
+
+        Entity& entity = app->entities[i];
+        entity.localParamsOffset = app->cbuffer.head;
+
+        PushMat4(app->cbuffer, entity.worldMatrix);
+        PushMat4(app->cbuffer, app->camera.GetProjMatrix() * app->camera.GetViewMatrix() * entity.worldMatrix);
+
+        entity.localParamsSize = app->cbuffer.head - entity.localParamsOffset;
+    }
+
+    glUnmapBuffer(GL_UNIFORM_BUFFER);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+void Engine::Shaders::DeferredUniformBlockBuffer(App* app)
+{
+    BufferManager::MapBuffer(app->cbuffer, GL_WRITE_ONLY);
+    app->globalParamsOffset = app->cbuffer.head;
+
+    PushVec3(app->cbuffer, app->camera.position);
+    PushUInt(app->cbuffer, (u32)app->renderLayer);
+
+    app->globalParamsSize = app->cbuffer.head - app->globalParamsOffset;
+
+    for (u32 i = 0; i < app->entities.size(); ++i)
+    {
+        BufferManager::AlignHead(app->cbuffer, app->uniformBlockAlignment);
+
+        Entity& entity = app->entities[i];
+        entity.localParamsOffset = app->cbuffer.head;
+
+        PushMat4(app->cbuffer, entity.worldMatrix);
+        PushMat4(app->cbuffer, app->camera.GetProjMatrix() * app->camera.GetViewMatrix() * entity.worldMatrix);
+        PushUInt(app->cbuffer, (i == 3) ? 0 : 1);
+
+        entity.localParamsSize = app->cbuffer.head - entity.localParamsOffset;
+    }
+
+    for (u32 i = 0; i < app->activeLights; ++i)
+    {
+        BufferManager::AlignHead(app->cbuffer, app->uniformBlockAlignment);
+
+        Light& light = app->lights[i];
+        light.localParamsOffset = app->cbuffer.head;
+
+        PushMat4(app->cbuffer, light.worldMatrix);
+        PushMat4(app->cbuffer, app->camera.GetProjMatrix() * app->camera.GetViewMatrix() * light.worldMatrix);
+
+        PushUInt(app->cbuffer, light.type);
+        PushVec3(app->cbuffer, light.color);
+        PushVec3(app->cbuffer, light.direction);
+        PushVec3(app->cbuffer, light.position);
+
+        light.localParamsSize = app->cbuffer.head - light.localParamsOffset;
+    }
+
+    glUnmapBuffer(GL_UNIFORM_BUFFER);
+    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+}
+
+void Engine::Shaders::HotReloading(App* app)
+{
+    for (u64 i = 0; i < app->programs.size(); ++i)
+    {
+        Program& program = app->programs[i];
+        u64 currentTimestamp = FileManager::GetFileLastWriteTimestamp(program.filepath.c_str());
+        if (currentTimestamp < program.lastWriteTimestamp)
+        {
+            glDeleteProgram(program.handle);
+            String programSource = FileManager::ReadTextFile(program.filepath.c_str());
+            const char* programName = program.programName.c_str();
+            program.handle = CreateProgramFromSource(programSource, programName);
+            program.lastWriteTimestamp = currentTimestamp;
+        }
+    }
+}
+
+// ENTITIES --------------------------------------------------------------------
+void Engine::Lights::AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direction, vec3 position, mat4 worldMatrix)
+{
+    Light light         = {};
+    light.type          = type;
+    light.color         = color;
+    light.direction     = direction;
+    light.position      = position;
+    light.worldMatrix   = worldMatrix;
 
     app->lights.push_back(light);
     ++app->activeLights;
@@ -443,11 +505,11 @@ void Engine::Lights::AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direct
 void Engine::Renderer::InitFramebuffer(App* app)
 {
     // GENERATING TEXTURES
-    GenerateFramebufferTexture(app->shadedTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
-    GenerateFramebufferTexture(app->normalTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
-    GenerateFramebufferTexture(app->albedoTexAttachment,    app->displaySize,   GL_UNSIGNED_BYTE);
-    GenerateFramebufferTexture(app->depthTexAttachment,     app->displaySize,   GL_UNSIGNED_BYTE);
-    GenerateFramebufferTexture(app->positionTexAttachment,  app->displaySize,   GL_FLOAT);
+    GenerateFramebufferTexture(app->GShadedTex,    app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->GAlbedoTex,    app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->GNormalTex,    app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->GDepthTex,     app->displaySize,   GL_UNSIGNED_BYTE);
+    GenerateFramebufferTexture(app->GPositionTex,  app->displaySize,   GL_FLOAT);
 
     // DEPTH BUFFER ATTACHMENT
     glGenTextures(1, &app->depthBufferHandle);
@@ -466,12 +528,12 @@ void Engine::Renderer::InitFramebuffer(App* app)
     glGenFramebuffers(1, &app->framebufferHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, app->framebufferHandle);
 
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,  app->shadedTexAttachment,   0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,  app->normalTexAttachment,   0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2,  app->albedoTexAttachment,   0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3,  app->depthTexAttachment,    0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4,  app->positionTexAttachment, 0);
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,   app->depthBufferHandle,     0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,  app->GShadedTex,        0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,  app->GAlbedoTex,        0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2,  app->GNormalTex,        0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3,  app->GDepthTex,         0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT4,  app->GPositionTex,      0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,   app->depthBufferHandle, 0);
 
     CheckFramebufferStatus();
 
@@ -497,11 +559,11 @@ void Engine::Renderer::ClearFramebuffer(App* app)
 void Engine::Renderer::FreeFramebuffer(App* app)
 {   
     GLuint textures[] = {
-       app->shadedTexAttachment,
-       app->normalTexAttachment,
-       app->albedoTexAttachment,
-       app->depthTexAttachment,
-       app->positionTexAttachment,
+       app->GShadedTex,
+       app->GNormalTex,
+       app->GAlbedoTex,
+       app->GDepthTex,
+       app->GPositionTex,
        app->depthBufferHandle
     };
     
@@ -645,7 +707,7 @@ void Engine::Renderer::InitEntities(App* app)
     u32 reliefCubeIdx   = Importer::LoadModel(app, "Cube/Cube.fbx");
     u32 sphereIdx       = Importer::LoadModel(app, "Sphere/Sphere.fbx");
     u32 planeIdx        = Primitives::GetPlaneIdx();
-    Primitives::Utils::sphereIdx = sphereIdx;
+    Primitives::SetSphereIdx(sphereIdx);
 
     // TEXTURE LOADING
     app->reliefTexIdx   = Importer::LoadTexture2D(app, "Cube/toy_box_disp.png");
@@ -661,8 +723,8 @@ void Engine::Renderer::InitEntities(App* app)
 
     // LIGHTS
     //                    LIGHT TYPE        COLOR                 DIRECTION             POSITION 
-    Lights::AddLight(app, LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f,  1.0f });
-    Lights::AddLight(app, LT_POINT,       { 0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 3.0f, -2.0f });
+    Lights::AddLight(app, LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f,  1.0f }, Transform::PositionScale({ 1.0f, 1.0f,  1.0f }, Transform::defaultScale));
+    Lights::AddLight(app, LT_POINT,       { 0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, { 0.0f, 3.0f, -2.0f }, Transform::PositionScale({ 0.0f, 3.0f, -2.0f }, Transform::defaultScale));
     //app->lights.push_back({ LT_DIRECTIONAL, { 1.0f, 1.0f, 1.0f }, { -1.0f, -1.0f, -1.0f },  { 1.0f, 1.0f,  1.0f } });
     //app->lights.push_back({ LT_POINT,       { 0.5f, 0.0f, 0.0f }, {  0.0f,  0.0f,  0.0f },  { 0.0f, 3.0f, -2.0f } });
 
@@ -783,6 +845,31 @@ void Engine::Renderer::InitFramebufferQuad(App* app)
     }
 }
 
+void Engine::Renderer::RenderLightingQuad(App* app)
+{
+    glBindVertexArray(app->vaoFramebufferQuad);
+
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    
+    glBindVertexArray(0);
+}
+
+void Engine::Renderer::RenderLightingSphere(App* app)
+{
+    Model& model = app->models[Primitives::GetSphereIdx()];
+    Mesh& mesh   = app->meshes[model.meshIdx];
+    for (u32 i = 0; i < mesh.submeshes.size(); ++i)
+    {
+        GLuint VAO = FindVAO(mesh, i, app->programs[app->deferredLightingProgramIdx]);
+        glBindVertexArray(VAO);
+
+        Submesh& submesh = mesh.submeshes[i];
+        glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
+    }
+
+    glBindVertexArray(0);
+}
+
 void Engine::Renderer::RenderQuad(App* app)
 {
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -845,11 +932,9 @@ void Engine::Renderer::RenderEntities(App* app)
 {
     BindFramebufferForRender(app);
 
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(0, 0, app->displaySize.x, app->displaySize.y);
-    
-    glEnable(GL_DEPTH_TEST);
 
     GeometryPass(app);
 
@@ -868,6 +953,9 @@ void Engine::Renderer::RenderEntities(App* app)
 
 void Engine::Renderer::GeometryPass(App* app)
 {
+    glEnable(GL_DEPTH_TEST);
+    //glDisable(GL_BLEND);
+    
     Program& renderProgram = (InDeferredMode(app)) ? app->programs[app->deferredGeometryProgramIdx] : app->programs[app->forwardRenderingProgramIdx];
     glUseProgram(renderProgram.handle);
 
@@ -875,8 +963,7 @@ void Engine::Renderer::GeometryPass(App* app)
 
     for (u32 i = 0; i < app->entities.size(); ++i)
     {
-        u32 blockSize = sizeof(mat4) * 2;
-        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->cbuffer.handle, app->entities[i].localParamsOffset, blockSize);
+        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(1), app->cbuffer.handle, app->entities[i].localParamsOffset, app->entities[i].localParamsSize);
 
         Model& model = app->models[app->entities[i].modelIndex];
         Mesh& mesh   = app->meshes[model.meshIdx];
@@ -888,56 +975,81 @@ void Engine::Renderer::GeometryPass(App* app)
             u32 submeshMaterialIdx      = model.materialIndices[i];
             Material& submeshMaterial   = app->materials[submeshMaterialIdx];
 
-            glUniform1i(glGetUniformLocation(renderProgram.handle, "uTexture"), 0);
-
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.albedoTexIdx].handle);
+            glUniform1i(glGetUniformLocation(renderProgram.handle, "uTexture"), 0);
 
             // NORMAL MAP
-
+            if (app->useNormalMap)
+            {
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, app->textures[submeshMaterial.normalTexIdx].handle);
+                glUniform1i(glGetUniformLocation(renderProgram.handle, "uNormalMap"), 1);
+            }
 
             // RELIEF MAP
-
+            if (app->useBumpMap)
+            {
+                glActiveTexture(GL_TEXTURE2);
+                glBindTexture(GL_TEXTURE_2D, app->textures[app->reliefTexIdx].handle);
+                glUniform1i(glGetUniformLocation(renderProgram.handle, "uBumpMap"), 2);
+                glUniform1f(glGetUniformLocation(renderProgram.handle, "uBumpiness"), app->bumpiness);
+            }
 
             Submesh& submesh = mesh.submeshes[i];
             glDrawElements(GL_TRIANGLES, submesh.indices.size(), GL_UNSIGNED_INT, (void*)(u64)submesh.indexOffset);
         }
     }
+
+    glBindVertexArray(0);
+    glUseProgram(0);
 }
 
 void Engine::Renderer::LightingPass(App* app)
 {
-    Program& deferredLightingProgram = app->programs[app->deferredLightingProgramIdx];
-    glUseProgram(deferredLightingProgram.handle);
-
-    glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oNormals"),   0);
-    glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oAlbedo"),    1);
-    glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oDepth"),     2);
-    glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oPosition"),  3);
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, app->normalTexAttachment);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, app->albedoTexAttachment);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, app->depthTexAttachment);
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, app->positionTexAttachment);
-
     GLuint drawBuffers[] = { GL_COLOR_ATTACHMENT0 };
     glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
-
+    
     glDisable(GL_DEPTH_TEST);
     glDepthMask(GL_FALSE);
     glEnable(GL_BLEND);
     glBlendEquation(GL_FUNC_ADD);
     glClear(GL_COLOR_BUFFER_BIT);
+    
+    Program& deferredLightingProgram = app->programs[app->deferredLightingProgramIdx];
+    glUseProgram(deferredLightingProgram.handle);
 
     glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
-    
-    glBindVertexArray(app->vaoQuad);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    for (u32 i = 0; i < app->activeLights; ++i)
+    {
+        glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(2), app->cbuffer.handle, app->lights[i].localParamsOffset, app->lights[i].localParamsSize);
+
+        Light& light = app->lights[i];
+
+        glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oAlbedo"),    0);
+        glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oNormals"),   1);
+        glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oDepth"),     2);
+        glUniform1i(glGetUniformLocation(deferredLightingProgram.handle, "oPosition"),  3);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, app->GAlbedoTex);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, app->GNormalTex);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, app->GDepthTex);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, app->GPositionTex);
+
+        switch (light.type)
+        {
+        case LIGHT_TYPE::LT_DIRECTIONAL: { RenderLightingQuad(app); }   break;
+        case LIGHT_TYPE::LT_POINT:       { RenderLightingSphere(app); } break;
+        }
+    }
+
     glBindVertexArray(0);
+    glUseProgram(0);
 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
@@ -945,8 +1057,7 @@ void Engine::Renderer::LightingPass(App* app)
 
 void Engine::Renderer::FramebufferPass(App* app)                                          // THIS-HERE
 {
-    Program& framebufferQuadProgram = app->programs[app->framebufferQuadProgramIdx];
-    glUseProgram(framebufferQuadProgram.handle);
+    glUseProgram(app->programs[app->framebufferQuadProgramIdx].handle);
     glBindVertexArray(app->vaoFramebufferQuad);
 
     glUniform1i(app->framebufferQuadProgramUniformTex, 0);
@@ -954,22 +1065,23 @@ void Engine::Renderer::FramebufferPass(App* app)                                
 
     switch (app->renderLayer)
     {
-    case RENDER_LAYER::SHADED:   { glBindTexture(GL_TEXTURE_2D, app->shadedTexAttachment); }     break;
-    case RENDER_LAYER::ALBEDO:   { glBindTexture(GL_TEXTURE_2D, app->albedoTexAttachment); }     break;
-    case RENDER_LAYER::NORMAL:   { glBindTexture(GL_TEXTURE_2D, app->normalTexAttachment); }     break;
-    case RENDER_LAYER::DEPTH:    { glBindTexture(GL_TEXTURE_2D, app->depthTexAttachment); }      break;
-    case RENDER_LAYER::POSITION: { glBindTexture(GL_TEXTURE_2D, app->positionTexAttachment); }   break;
+    case RENDER_LAYER::SHADED:   { glBindTexture(GL_TEXTURE_2D, app->GShadedTex); }     break;
+    case RENDER_LAYER::ALBEDO:   { glBindTexture(GL_TEXTURE_2D, app->GAlbedoTex); }     break;
+    case RENDER_LAYER::NORMAL:   { glBindTexture(GL_TEXTURE_2D, app->GNormalTex); }     break;
+    case RENDER_LAYER::DEPTH:    { glBindTexture(GL_TEXTURE_2D, app->GDepthTex); }      break;
+    case RENDER_LAYER::POSITION: { glBindTexture(GL_TEXTURE_2D, app->GPositionTex); }   break;
     }
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+    glBindTexture(GL_TEXTURE_2D, 0);
     glBindVertexArray(0);
     glUseProgram(0);
 }
 
 void Engine::Renderer::BindFramebufferForRender(App* app)                       // THIS-HERE
 {
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     ClearFramebuffer(app);
@@ -1022,6 +1134,27 @@ void Engine::Gui::GeneralTab(App* app)
     vec3 position = app->camera.GetPosition();
     if (ImGui::DragFloat3("Position", (float*)&position, 0.1)) { app->camera.SetPosition(position); }
     //if (ImGui::DragFloat3("Rotation", (float*)&rotation, 0.1)) { app->camera.SetRotation(rotation); }
+
+    ImGui::Separator();
+    
+    ImGui::TextColored(cyan, "Shaders:");
+
+    const char* items[] = { "FORWARD", "DEFERRED" };
+    static int item_current = 1;
+    ImGui::Combo("Shading Pipeline", &item_current, items, IM_ARRAYSIZE(items));
+    app->renderMode = (RENDER_MODE)item_current;
+
+    const char* items2[] = { "SHADED", "ALBEDO", "NORMAL", "DEPTH", "POSITION" };
+    static int item_current2 = 0;
+    ImGui::Combo("Shading Layers", &item_current2, items2, IM_ARRAYSIZE(items2));
+    app->renderLayer = (RENDER_LAYER)item_current2;
+
+    //static bool deferredShading = Renderer::InDeferredMode(app);
+    //ImGui::Checkbox("Deferred Shading", &deferredShading);
+    //app->renderMode = (deferredShading) ? RENDER_MODE::DEFERRED : RENDER_MODE::FORWARD;
+
+    ImGui::Checkbox("Normal Map", &app->useNormalMap);
+    ImGui::Checkbox("Bump Map", &app->useBumpMap);
 
     ImGui::End();
 }

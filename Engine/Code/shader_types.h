@@ -177,6 +177,9 @@ struct Light
     vec3        color;
     vec3        direction;
     vec3        position;
+    mat4        worldMatrix;
+    u32         localParamsOffset;
+    u32         localParamsSize;
 };
 
 #endif // !__SHADER_TYPES_H__

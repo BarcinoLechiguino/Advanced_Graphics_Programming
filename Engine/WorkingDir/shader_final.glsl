@@ -144,22 +144,10 @@ void main()
 
 #ifdef GEOMETRY_PASS
 
-struct Light
-{
-	unsigned int type;
-	vec3		 color;
-	vec3		 direction;
-	vec3		 position;
-};
-
 layout(binding = 0, std140) uniform GlobalParams
 {
 	vec3			uCameraPosition;
-	//float			uCameraNearPlane;
-	//float			uCameraFarPlane;
 	unsigned int	uRenderLayer;
-	unsigned int	uLightCount;
-	Light			uLight[16];
 };
 
 #if defined(VERTEX)			// ----------------------------------------
@@ -174,6 +162,7 @@ layout(binding = 1, std140) uniform LocalParams
 {
 	mat4 uWorldMatrix;
 	mat4 uWorldViewProjectionMatrix;
+	unsigned int isCube;
 };
 
 out vec2 vTexCoord;			
@@ -197,6 +186,13 @@ void main()
 
 #elif defined(FRAGMENT)		// ----------------------------------------
 
+layout(binding = 1, std140) uniform LocalParams
+{
+	mat4 uWorldMatrix;
+	mat4 uWorldViewProjectionMatrix;
+	unsigned int isCube;
+};
+
 in vec2 vTexCoord;			
 in vec3 vPosition;			// ---
 in vec3 vNormal;			//
@@ -205,21 +201,18 @@ in vec3 vTangent;			//
 in vec3 vBitangent;			// ---
 
 uniform sampler2D	uTexture;
-//uniform sampler2D	uNormalMap;
-//uniform sampler2D	uBumpMap;
-//uniform float		uBumpiness;
-//uniform int			noTexture;
-//uniform int			noNormal;
-//uniform int			noBump;
+uniform sampler2D	uNormalMap;
+uniform sampler2D	uBumpMap;
+uniform float		uBumpiness;
 
 layout(location = 0) out vec4 oColor;
-layout(location = 1) out vec4 oNormals;
-layout(location = 2) out vec4 oAlbedo;
+layout(location = 1) out vec4 oAlbedo;
+layout(location = 2) out vec4 oNormals;
 layout(location = 3) out vec4 oDepth;
 layout(location = 4) out vec4 oPosition;
 
 float near	= 0.1;
-float far	= 100.0;
+float far	= 1000.0;
 
 float LinearizeDepth(in float depth)
 {
@@ -231,7 +224,29 @@ float LinearizeDepth(in float depth)
 
 vec2 ReliefMapping(in vec2 texCoords, in mat3 TBN)
 {
-	return vec2(0.0);
+	int numSteps = 45;
+
+	// Compute the view ray in texture space
+	vec3 rayTexSpace = transpose(TBN) * normalize(vViewDir.xyz);
+
+	// Increment
+	float texSize = 256;																			// HARDCODED RELIEF TEX SIZE
+	vec3 rayIncrementTexSpace;
+	rayIncrementTexSpace.xy = -1 * uBumpiness * rayTexSpace.xy / abs(rayTexSpace.z * texSize);
+	rayIncrementTexSpace.z = 1.0 / numSteps;
+
+	// Sampling state
+	vec3 samplePositionTexspace = vec3(texCoords, 0.0);
+	float sampledDepth = texture(uBumpMap, samplePositionTexspace.xy).r;
+
+	// Linear search
+	for (int i = 0; i < numSteps && samplePositionTexspace.z < sampledDepth; ++i)
+	{
+		samplePositionTexspace += rayIncrementTexSpace;
+		sampledDepth = texture(uBumpMap, samplePositionTexspace.xy).r;
+	}
+
+	return samplePositionTexspace.xy;
 }
 
 void main()
@@ -240,24 +255,23 @@ void main()
 	vec3 B = normalize(vBitangent);
 	vec3 N = normalize(vNormal);
 
-	mat3 TBN		= mat3(T, B, N);
+	mat3 TBN		= mat3(T, B, N);							// Normals from tangent space to world space
 	vec2 texCoords	= vTexCoord;
+	
+	if (isCube == 0)
+	{
+		texCoords = ReliefMapping(vTexCoord, TBN);
 
-	//if (noBump == 0)
-	//{
-	//	texCoords = ReliefMapping(vTexCoord, TBN);
-	//}
+		vec3 tangentSpaceNormal = texture(uNormalMap, texCoords).xyz * 2.0 - vec3(1.0);
+		N = TBN * tangentSpaceNormal;
+		N = normalize(uWorldMatrix * vec4(N, 0.0)).xyz;
+	}
 
-	//if (noNormal == 0)
-	//{
-	//	vec3 tangentSpaceNormal = texture(uNormalMap, texCoords).xyz * 2.0 - vec3(1.0);
-	//	N = TBN * tangentSpaceNormal;
-	//}
-
+	oAlbedo		= texture(uTexture, texCoords);
 	oNormals	= vec4(N, 1.0);
-	oAlbedo		= /*(noTexture == 0) ? vec4(0.5) :*/ texture(uTexture, texCoords);
 	oDepth		= vec4(vec3(LinearizeDepth(gl_FragCoord.z) / far), 1.0);
 	oPosition	= vec4(vPosition, 1.0);
+	//oColor		= oAlbedo;
 }
 
 #endif						// ----------------------------------------
@@ -283,11 +297,14 @@ struct Light
 layout(binding = 0, std140) uniform GlobalParams
 {
 	vec3			uCameraPosition;
-	//float			uCameraNearPlane;
-	//float			uCameraFarPlane;
 	unsigned int	uRenderLayer;
-	unsigned int	uLightCount;
-	Light			uLight[16];
+};
+
+layout(binding = 2, std140) uniform LightParams
+{
+	mat4  uWorldMatrix;
+	mat4  uWorldViewProjectionMatrix;
+	Light light;
 };
 
 #if defined (VERTEX)		// ----------------------------------------
@@ -295,30 +312,32 @@ layout(binding = 0, std140) uniform GlobalParams
 layout(location = 0) in vec3 aPosition;
 layout(location = 1) in vec2 aTexCoord;
 
-layout(binding = 1, std140) uniform LocalParams
-{
-	mat4 uWorldMatrix;
-	mat4 uWorldViewProjectionMatrix;
-};
-
 out vec2 vTexCoord;
-out vec3 vViewPos;			// In World Space
 
 void main()
 {
-	vTexCoord = aTexCoord;
-	vViewPos  = vec3(uCameraPosition);
-
-	gl_Position = vec4(aPosition, 1.0);
+	if (light.type == LT_DIRECTIONAL)
+	{
+		vTexCoord	= aTexCoord;
+		gl_Position = vec4(aPosition, 1.0);
+	}
+	else if (light.type == LT_POINT)
+	{
+		gl_Position = uWorldViewProjectionMatrix * vec4(aPosition, 1.0);
+	}
+	else
+	{
+		vTexCoord	= aTexCoord;
+		gl_Position = vec4(aPosition, 1.0);
+	}
 }
 
 #elif defined(FRAGMENT)		// ----------------------------------------
 
 in vec2 vTexCoord;
-in vec3 vViewPos;
 
-uniform sampler2D oNormals;
 uniform sampler2D oAlbedo;
+uniform sampler2D oNormals;
 uniform sampler2D oDepth;
 uniform sampler2D oPosition;
 
@@ -347,41 +366,28 @@ vec3 GetLightDir(in Light light, in vec3 pos, out float attenuation)
 
 void main()
 {
-	vec3 vPosition	= texture(oPosition, vTexCoord).rgb;
-	vec3 vNormal	= texture(oNormals, vTexCoord).rgb;
-	vec3 vAlbedo	= texture(oAlbedo, vTexCoord).rgb;
-	vec3 vViewDir	= normalize((vViewPos - vPosition));			// uCameraPosition straight up?
+	vec2 texCoords = vTexCoord;
+	
+	vec3 vPosition	= texture(oPosition, texCoords).rgb;
+	vec3 vNormal	= texture(oNormals,  texCoords).rgb;
+	vec3 vAlbedo	= texture(oAlbedo,	 texCoords).rgb;
+	vec3 vViewDir	= normalize((uCameraPosition - vPosition));
 
-	vec3  ambientColor	= vAlbedo.xyz * 0.4;						// Ambient
-	vec3  specular		= vec3(1.0);								// Material Parameter
+	vec3  specularColor = vec3(1.0);								// Material Parameter
 	float shininess		= 120.0;									// Material Parameter
+	float attenuation	= 1.0;
+	
+	vec3  N	 = normalize(vNormal);									// NORMAL
+	vec3  L	 = GetLightDir(light, vPosition, attenuation);			// LIGHT DIR
+	vec3  R	 = reflect(-L, N);										// REFLECTED DIR
+	float d0 = max(dot(N, L), 0.0);									// DIFFUSE INTENSITY
+	float s0 = pow(max(dot(vViewDir, R), 0.0), shininess);			// SPECULAR INTENSITY
 
-	vec3 N				= vNormal;
-	vec3 finalDiffuse	= vec3(0.0);
-	vec3 finalSpecular	= vec3(0.0);
+	vec3 ambient	= vAlbedo.xyz * 0.5;							// 0.05 less on all to avoid overexposure.
+	vec3 diffuse	= light.color * vAlbedo.xyz * d0 * 0.65;		// 
+	vec3 specular	= light.color * vAlbedo.xyz * s0 * 0.05;		// 
 
-	for (int i = 0; i < uLightCount; ++i)
-	{
-		Light light			= uLight[i];
-		float attenuation	= 1.0;
-		
-		vec3 L				= GetLightDir(light, vPosition, attenuation);
-		vec3 R				= reflect(-L, N);
-
-		float diffIntensity = max(dot(N, L), 0.0);
-		vec3 diffuseColor	= (vAlbedo.xyz * light.color * diffIntensity) * attenuation;
-
-		float specIntensity = pow(max(dot(vViewDir, R), 0.0), shininess);
-		vec3 specularColor	= (attenuation * specular * light.color * specIntensity) * attenuation;
-
-		finalDiffuse  += diffuseColor;
-		finalSpecular += specularColor;
-	}
-
-	finalDiffuse  /= uLightCount;
-	finalSpecular /= uLightCount;
-
-	oColor = vec4(ambientColor + finalDiffuse + finalSpecular, 1.0);
+	oColor = vec4((ambient + diffuse + specular), 1.0);
 }
 
 #endif						// ----------------------------------------

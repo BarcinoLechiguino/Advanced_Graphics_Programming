@@ -13,6 +13,8 @@ namespace Primitives
 	const u32 GetCubeIdx	();
 	const u32 GetSphereIdx	();
 
+	void SetSphereIdx(u32 idx);
+
 	namespace Utils
 	{
 		void InitPlaneData	(App* app);

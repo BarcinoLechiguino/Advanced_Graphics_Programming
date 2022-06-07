@@ -25,6 +25,10 @@ const u32 Primitives::GetSphereIdx()
 	return Utils::sphereIdx;
 }
 
+void Primitives::SetSphereIdx(u32 idx)
+{
+	Utils::sphereIdx = idx;
+}
 
 void Primitives::Utils::InitPlaneData(App* app)
 {	

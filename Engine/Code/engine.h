@@ -42,11 +42,16 @@ namespace Engine
 
 		void GetProgramAttributes		(App* app, GLuint programHandle, GLuint& programUniformTexture);
 		void InitUniformBlockBuffer		(App* app);
+
+		void ForwardUniformBlockBuffer	(App* app);
+		void DeferredUniformBlockBuffer	(App* app);
+
+		void HotReloading				(App* app);
 	}
 
 	namespace Lights
 	{
-		void AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direction, vec3 position);
+		void AddLight(App* app, LIGHT_TYPE type, vec3 color, vec3 direction, vec3 position, mat4 worldMatrix);
 	}
 
 	namespace Renderer
@@ -63,11 +68,13 @@ namespace Engine
 		
 		void InitLightingQuad			(App* app);
 		void InitFramebufferQuad		(App* app);
+		void RenderLightingQuad			(App* app);
+		void RenderLightingSphere		(App* app);
 
 		void RenderQuad					(App* app);
 		void RenderMesh					(App* app);
 		void RenderEntities				(App* app);
-		
+
 		void GeometryPass				(App* app);
 		void LightingPass				(App* app);
 		void FramebufferPass			(App* app);

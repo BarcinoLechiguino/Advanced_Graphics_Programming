@@ -65,15 +65,19 @@ public:                                                                 // OpenG
 public:          
     GLuint       framebufferHandle;
     GLuint       depthBufferHandle;
-    GLuint       albedoTexAttachment;
-    GLuint       normalTexAttachment;
-    GLuint       depthTexAttachment;
-    GLuint       positionTexAttachment;
-    GLuint       shadedTexAttachment;
+    GLuint       GAlbedoTex;
+    GLuint       GNormalTex;
+    GLuint       GDepthTex;
+    GLuint       GPositionTex;
+    GLuint       GShadedTex;
                  
     GLuint       vaoFramebufferQuad;
     GLuint       framebufferQuadProgramIdx;
     GLuint       framebufferQuadProgramUniformTex;
+
+    bool        useNormalMap;
+    bool        useBumpMap;
+    float       bumpiness;
 
 public:                                                                 // Containers ------------------------------
     std::vector<Entity>     entities;                                   // Will store all active entities.
