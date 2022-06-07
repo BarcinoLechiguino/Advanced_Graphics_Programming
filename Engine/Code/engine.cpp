@@ -23,7 +23,7 @@ void Engine::Init(App* app)
     app->enableDebugGroups  = false;
     app->refreshFramebuffer = true;
 
-    app->renderMode  = RENDER_MODE::FORWARD;
+    app->renderMode  = RENDER_MODE::DEFERRED;
     app->renderLayer = RENDER_LAYER::SHADED;
     app->shaderMode  = SHADER_MODE::ENTITIES;
 
@@ -643,9 +643,9 @@ void Engine::Renderer::InitEntities(App* app)
     // MODEL LOADING
     u32 patrickModelIdx = Importer::LoadModel(app, "Patrick/Patrick.obj");
     u32 reliefCubeIdx   = Importer::LoadModel(app, "Cube/Cube.fbx");
+    u32 sphereIdx       = Importer::LoadModel(app, "Sphere/Sphere.fbx");
     u32 planeIdx        = Primitives::GetPlaneIdx();
-    u32 cubeIdx         = Primitives::GetCubeIdx();
-    u32 sphereIdx       = Primitives::GetSphereIdx();
+    Primitives::Utils::sphereIdx = sphereIdx;
 
     // TEXTURE LOADING
     app->reliefTexIdx   = Importer::LoadTexture2D(app, "Cube/toy_box_disp.png");
@@ -657,7 +657,7 @@ void Engine::Renderer::InitEntities(App* app)
     app->entities.push_back({ "Patrick_3",  Transform::PositionScale({-5.0f, 3.5f, -5.0f }, Transform::defaultScale),   patrickModelIdx,    0,          0       });
     app->entities.push_back({ "ReliefCube", Transform::PositionScale({ 0.0f, 5.0f,  0.0f }, Transform::defaultScale),   reliefCubeIdx,      0,          0       });
     app->entities.push_back({ "Plane_1",    Transform::PositionScale({ 0.0f, 0.0f,  0.0f }, { 25.0f, 25.0f, 25.0f }),   planeIdx,           0,          0       });
-    //app->entities.push_back({ "Sphere_1",   Transform::PositionScale({ 0.0f, 2.0f,  0.0f }, Transform::defaultScale),   sphereIdx,          0,          0           });
+    app->entities.push_back({ "Sphere_1",   Transform::PositionScale({ 2.0f, 2.0f,  0.0f }, Transform::defaultScale),   sphereIdx,          0,          0       });
 
     // LIGHTS
     //                    LIGHT TYPE        COLOR                 DIRECTION             POSITION 
@@ -670,8 +670,11 @@ void Engine::Renderer::InitEntities(App* app)
     app->forwardRenderingProgramIdx = LoadProgram(app, "shader_final.glsl", "FORWARD_RENDERING");
     Shaders::GetProgramAttributes(app, app->forwardRenderingProgramIdx, app->texEntityProgramUniformTexture);
 
+    GLuint a = 0;
     app->deferredGeometryProgramIdx = LoadProgram(app, "shader_final.glsl", "GEOMETRY_PASS");
+    Shaders::GetProgramAttributes(app, app->deferredGeometryProgramIdx, a);
     app->deferredLightingProgramIdx = LoadProgram(app, "shader_final.glsl", "LIGHTING_PASS");
+    Shaders::GetProgramAttributes(app, app->deferredLightingProgramIdx, a);
 
     Shaders::InitUniformBlockBuffer(app);
     app->cbuffer = CreateConstantBuffer(app->maxUniformBufferSize);
@@ -924,14 +927,20 @@ void Engine::Renderer::LightingPass(App* app)
     GLuint drawBuffers[] = { GL_COLOR_ATTACHMENT0 };
     glDrawBuffers(ARRAY_COUNT(drawBuffers), drawBuffers);
 
-    glDepthMask(false);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_BLEND);
+    glBlendEquation(GL_FUNC_ADD);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     glBindBufferRange(GL_UNIFORM_BUFFER, BINDING(0), app->cbuffer.handle, app->globalParamsOffset, app->globalParamsSize);
     
     glBindVertexArray(app->vaoQuad);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
-    glDepthMask(true);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
 }
 
 void Engine::Renderer::FramebufferPass(App* app)                                          // THIS-HERE
